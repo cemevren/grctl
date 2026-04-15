@@ -1,0 +1,43 @@
+[tasks.build]
+description = "Build grctld (server) and grctl (CLI) binaries"
+run = """
+echo "Building grctld (server daemon)..."
+go build -ldflags="-s -w" -o bin/grctld ./cmd/grctld
+echo "Binary: bin/grctld"
+echo "Building grctl (CLI)..."
+go build -ldflags="-s -w" -o bin/grctl ./cmd/grctl
+echo "Binary: bin/grctl"
+"""
+
+[tasks.start]
+description = "Build and run the server daemon"
+depends = ["build"]
+run = "./bin/grctld -l debug"
+
+[tasks.dev]
+description = "Run with auto-reload (air)"
+run = "air"
+
+[tasks.test]
+description = "Run tests"
+run = "go test -v ./..."
+
+[tasks.lint]
+description = "Run linter"
+run = "golangci-lint run --timeout=5m ./..."
+
+[tasks.fmt]
+description = "Format code"
+run = "gofmt -s -w ."
+
+[tasks.tidy]
+description = "Tidy go.mod"
+run = "go mod tidy"
+
+[tasks.clean]
+description = "Clean build artifacts"
+run = "rm -rf bin/ tmp/ build-errors.log"
+
+[tasks.check]
+description = "Check code"
+depends = ["fmt", "lint", "tidy"]

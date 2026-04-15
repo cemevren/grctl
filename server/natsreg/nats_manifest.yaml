@@ -1,0 +1,93 @@
+version: 1
+
+streams:
+  state:
+    name: grctl_state
+    type: limit
+    consumer:
+      grctl_timer_fired:
+        name: grctl_timer_fired_cons
+        subject: grctl_timer_fired.>
+
+      grctl_directive:
+        name: grctl_directive_cons
+        subject: grctl_events.>
+
+      grctl_bg_task:
+        name: grctl_bg_task_cons
+        subject: grctl_bg_task
+
+
+subjects:
+  directive:
+    # For Worker directives: Worker -> DirectiveQueue -> Server -> TriggerSubject
+    # For API commands: Client(api cmd) -> APISubject -> Server -> DirectiveQueue -> TriggerSubject
+    # Use grctl_directive.new for new Runs
+    stream: grctl_directive
+    subject_patterns:
+      publish: grctl_directive.{wf_type}.{wf_id}.{run_id}
+      listen: grctl_directive.>
+  history:
+    # Worker(TaskEvents) -> HistorySubject
+    # Server(Start/Cancel/Terminate/Complete/Fail) -> HistorySubject
+    stream: grctl_state
+    subject_patterns:
+      publish: grctl_history.{wf_id}.{run_id}
+      listen: grctl_history.>
+  timer:
+    stream: grctl_state
+    subject_patterns:
+      publish: grctl_timers.{wf_id}.{kind}.{timer_id}
+      listen: grctl_timers.>
+  timer_fired:
+    stream: grctl_state
+    subject_patterns:
+      publish: grctl_timers_fired
+      listen: grctl_timers_fired
+  run_store:
+    stream: grctl_state
+    subject_patterns:
+      info: grctl_run.{wf_type}.{wf_id}.{run_id}.info
+      input: grctl_run.{wf_id}.{run_id}.input
+      output: grctl_run.{wf_id}.{run_id}.output
+      error: grctl_run.{wf_id}.{run_id}.error
+  kv_store:
+    stream: grctl_state
+    subject_patterns:
+      kv: grctl_wf_kv.{wf_id}.{run_id}.{key}
+  cancel:
+    stream: grctl_state
+    subject_patterns:
+      publish: grctl_cancel.{wf_id}
+      listen: grctl_cancel.>
+  events:
+    stream: grctl_state
+    subject_patterns:
+      publish: grctl_events.{wf_id}
+      listen: grctl_events.>
+  run_state:
+    stream: grctl_state
+    subject_patterns:
+      publish: grctl_state.run_state.{wf_id}.{run_id}
+      listen: grctl_state.run_state.>
+  worker_task:
+    stream: grctl_state
+    subject_patterns:
+      publish: grctl_worker_task.{wf_type}.{wf_id}.{run_id}
+      listen: grctl_worker_task.>
+      queue_group: grctl_worker_{wf_type}
+
+  bg_task:
+    stream: grctl_state
+    subject_patterns:
+      publish: grctl_bg_task
+      listen: grctl_bg_task
+
+  api:
+    # Req-Reply subject Client -> Server
+    # Client(api cmd) -> APISubject -> Server -> DirectiveSubject
+    # Use grctl_api.new for new Runs
+    stream: null
+    subject_patterns:
+      publish: grctl_api.workflow.{wf_id} # Server
+      listen: grctl_api.> # Server

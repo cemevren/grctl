@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  server:
+    name: Server CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install tools with mise
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+
+      - name: Verify dependencies
+        run: |
+          cd server
+          mise run tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: Lint
+        run: mise run -C server lint
+
+      - name: Run tests
+        run: mise run -C server test
+
+      - name: Build
+        run: mise run -C server build
+
+      - name: Upload Binary Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: grctl-linux-amd64
+          path: |
+            server/bin/grctld
+            server/bin/grctl
+          retention-days: 7
+
+  sdk-python:
+    name: SDK Python CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install tools with mise
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+
+      - name: Install dependencies
+        run: mise run setup
+
+      - name: Build grctl Server
+        run: mise run -C server build
+
+      - name: Start grctl Server
+        run: |
+          cd server
+          ./bin/grctld --in-memory -l debug > ../grctld.log 2>&1 &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for Server (Port 4225)
+        run: |
+          for _ in {1..60}; do
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "Server process exited before opening port 4225"
+              cat grctld.log
+              exit 1
+            fi
+            if printf "" 2>/dev/null >/dev/tcp/127.0.0.1/4225; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server failed to start in 60s"
+          cat grctld.log
+          exit 1
+
+      - name: Run checks (Lint, Format, Type)
+        run: mise run -C sdk_python check
+
+      - name: Run tests
+        run: mise run -C sdk_python test
+
+      - name: Stop Server
+        if: always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill "$SERVER_PID" 2>/dev/null || true
+          fi

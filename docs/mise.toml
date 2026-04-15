@@ -1,0 +1,3 @@
+[tasks.preview]
+description = "Preview documentation with zensical"
+run = "uv run zensical serve"

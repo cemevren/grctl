@@ -1,0 +1,21 @@
+[tools]
+go = "1.25.0"
+uv = "latest"
+"go:github.com/golangci/golangci-lint/cmd/golangci-lint" = "latest"
+"go:github.com/air-verse/air" = "latest"
+
+[tasks.setup]
+description = "Install project dependencies"
+run = """
+uv python install 3.13
+uv sync --project sdk_python
+uv sync --project docs
+"""
+
+[tasks.docs]
+description = "Preview documentation"
+run = "mise run -C docs preview"
+
+[tasks.server]
+description = "Build and start the server"
+run = "mise run -C server start"

@@ -1,0 +1,116 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      sdk_python_release_created: ${{ steps.release.outputs['sdk_python--release_created'] }}
+      server_release_created: ${{ steps.release.outputs['server--release_created'] }}
+      sdk_python_tag_name: ${{ steps.release.outputs['sdk_python--tag_name'] }}
+      server_tag_name: ${{ steps.release.outputs['server--tag_name'] }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  release-assets:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # --- GO SERVER ASSETS ---
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.0"
+
+      - name: Build Server Binaries
+        run: |
+          cd server
+          mkdir -p dist
+          # Build for multiple platforms
+          # For Linux/Mac/Windows, x64/arm64
+          platforms=("linux/amd64" "linux/arm64" "darwin/amd64" "darwin/arm64" "windows/amd64")
+          for platform in "${platforms[@]}"; do
+            platform_split=(${platform//\// })
+            export GOOS=${platform_split[0]}
+            export GOARCH=${platform_split[1]}
+
+            ext=""
+            if [ "$GOOS" == "windows" ]; then ext=".exe"; fi
+
+            echo "Building for $GOOS/$GOARCH..."
+            go build -ldflags="-s -w" -o "dist/grctld${ext}" ./cmd/grctld
+            go build -ldflags="-s -w" -o "dist/grctl${ext}" ./cmd/grctl
+
+            # Archive the binaries
+            if [ "$GOOS" == "windows" ]; then
+              zip "dist/grctl-$GOOS-$GOARCH.zip" "dist/grctld${ext}" "dist/grctl${ext}"
+            else
+              tar -czvf "dist/grctl-$GOOS-$GOARCH.tar.gz" -C dist "grctld" "grctl"
+            fi
+            rm "dist/grctld${ext}" "dist/grctl${ext}"
+          done
+
+      # --- PYTHON SDK ASSETS ---
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Build Python SDK
+        run: |
+          cd sdk_python
+          uv build
+
+      # --- ATTACH TO RELEASE ---
+      - name: Upload Release Assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Upload Go server archives
+          if [ -n "${{ needs.release-please.outputs.server_tag_name }}" ]; then
+            gh release upload "${{ needs.release-please.outputs.server_tag_name }}" server/dist/*.tar.gz server/dist/*.zip
+          fi
+          # Upload Python SDK wheels/sdists
+          if [ -n "${{ needs.release-please.outputs.sdk_python_tag_name }}" ]; then
+            gh release upload "${{ needs.release-please.outputs.sdk_python_tag_name }}" sdk_python/dist/*
+          fi
+
+  publish-python:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.sdk_python_release_created }}
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Build Python SDK
+        run: cd sdk_python && uv build
+
+      - name: Publish to PyPI
+        run: cd sdk_python && uv publish

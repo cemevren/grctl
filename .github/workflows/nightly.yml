@@ -1,0 +1,98 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # Every night at 02:00 UTC
+  workflow_dispatch: # Allows manual trigger for testing the workflow
+
+jobs:
+  cross-platform-build:
+    name: Cross-platform Server Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: windows
+            arch: amd64
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install tools with mise
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+
+      - name: Build
+        run: |
+          cd server
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/grctld-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} ./cmd/grctld
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/grctl-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} ./cmd/grctl
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: grctl-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            server/bin/grctld-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+            server/bin/grctl-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+
+  e2e-tests:
+    name: E2E Integration Tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install tools with mise
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+
+      - name: Build grctl Server
+        run: mise run -C server build
+
+      - name: Start grctl Server
+        run: |
+          cd server
+          ./bin/grctld --in-memory -l debug > ../grctld.log 2>&1 &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for Server (Port 4225)
+        run: |
+          for _ in {1..60}; do
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "Server process exited before opening port 4225"
+              cat grctld.log
+              exit 1
+            fi
+            if printf "" 2>/dev/null >/dev/tcp/127.0.0.1/4225; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server failed to start in 60s"
+          cat grctld.log
+          exit 1
+
+      - name: Run E2E Tests
+        run: |
+          mise run setup
+          cd sdk_python
+          # Specifically run the E2E tests that are ignored in standard CI
+          uv run pytest tests/e2e tests/examples
+
+      - name: Stop Server
+        if: always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill "$SERVER_PID" 2>/dev/null || true
+          fi
