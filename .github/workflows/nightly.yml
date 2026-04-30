@@ -9,19 +9,6 @@ jobs:
   cross-platform-build:
     name: Cross-platform Server Build
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - os: linux
-            arch: amd64
-          - os: linux
-            arch: arm64
-          - os: darwin
-            arch: amd64
-          - os: darwin
-            arch: arm64
-          - os: windows
-            arch: amd64
     steps:
       - uses: actions/checkout@v6
 
@@ -31,19 +18,15 @@ jobs:
           install: true
           cache: true
 
-      - name: Build
-        run: |
-          cd server
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/grctld-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} ./cmd/grctld
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o bin/grctl-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} ./cmd/grctl
+      - name: Build all platforms
+        run: mise run dist
+        working-directory: server
 
-      - name: Upload Artifact
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: grctl-${{ matrix.os }}-${{ matrix.arch }}
-          path: |
-            server/bin/grctld-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
-            server/bin/grctl-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          name: grctl-all-platforms
+          path: server/dist/
 
   e2e-tests:
     name: E2E Integration Tests (Linux)
