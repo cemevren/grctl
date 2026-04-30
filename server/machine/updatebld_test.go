@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type UpdateBldSuite struct {
@@ -486,6 +487,10 @@ func (s *UpdateBldSuite) TestCompleteRun_EmitsPurgeTask() {
 	btu, found := findBackgroundTaskUpdate(updates)
 	require.True(s.T(), found, "BackgroundTaskUpdate not found")
 	require.Equal(s.T(), ext.BackgroundTaskKindPurgeRunResidue, btu.Task.Kind)
+
+	var payload ext.PurgeRunResiduePayload
+	require.NoError(s.T(), msgpack.Unmarshal(btu.Task.Payload, &payload))
+	require.Equal(s.T(), d.RunInfo.WFID, payload.WFID)
 }
 
 func (s *UpdateBldSuite) TestFailRun_EmitsPurgeTask() {
@@ -499,6 +504,10 @@ func (s *UpdateBldSuite) TestFailRun_EmitsPurgeTask() {
 	btu, found := findBackgroundTaskUpdate(updates)
 	require.True(s.T(), found, "BackgroundTaskUpdate not found")
 	require.Equal(s.T(), ext.BackgroundTaskKindPurgeRunResidue, btu.Task.Kind)
+
+	var payload ext.PurgeRunResiduePayload
+	require.NoError(s.T(), msgpack.Unmarshal(btu.Task.Payload, &payload))
+	require.Equal(s.T(), d.RunInfo.WFID, payload.WFID)
 }
 
 func (s *UpdateBldSuite) TestCancelRun_EmitsPurgeTask() {
@@ -511,4 +520,8 @@ func (s *UpdateBldSuite) TestCancelRun_EmitsPurgeTask() {
 	btu, found := findBackgroundTaskUpdate(updates)
 	require.True(s.T(), found, "BackgroundTaskUpdate not found")
 	require.Equal(s.T(), ext.BackgroundTaskKindPurgeRunResidue, btu.Task.Kind)
+
+	var payload ext.PurgeRunResiduePayload
+	require.NoError(s.T(), msgpack.Unmarshal(btu.Task.Payload, &payload))
+	require.Equal(s.T(), d.RunInfo.WFID, payload.WFID)
 }

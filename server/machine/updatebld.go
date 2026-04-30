@@ -21,11 +21,7 @@ func newUpdateFactory() *UpdateFactory {
 }
 
 func (f *UpdateFactory) BuildUpdates(sn store.StateSnapshot, d ext.Directive) ([]store.StateUpdate, error) {
-
-	if sn.RunState.Kind == ext.RunStateComplete {
-		return nil, ErrRunAlreadyCompleted
-	}
-	slog.Debug("Building updates for directive", "WFID", d.RunInfo.WFID, "RunID", d.RunInfo.ID, "DirectiveKind", d.Kind, "RunState", sn.RunState)
+	slog.Debug("Building updates for directive", "WFID", d.RunInfo.WFID, "RunID", d.RunInfo.ID, "DirectiveKind", d.Kind, "RunState", sn.RunState.Kind)
 
 	var updates []store.StateUpdate
 	var err error

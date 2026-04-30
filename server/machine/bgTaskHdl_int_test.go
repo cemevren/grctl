@@ -10,6 +10,7 @@ import (
 	"grctl/server/natsreg"
 	"grctl/server/store"
 	"grctl/server/testutil"
+	intr "grctl/server/types"
 	ext "grctl/server/types/external/v1"
 
 	"github.com/nats-io/nats-server/v2/server"
@@ -54,21 +55,6 @@ func (s *PurgeRunResidueIntegrationSuite) publishRaw(subject string, data []byte
 	s.Require().NoError(err)
 }
 
-func (s *PurgeRunResidueIntegrationSuite) msgCount(subject string) int {
-	info, err := s.stream.Info(context.Background())
-	s.Require().NoError(err)
-	_ = info
-
-	// Use GetLastMsgForSubject to check existence — count via stream info is not per-subject.
-	// Instead, use the Purge result: attempt to get a message; ErrMsgNotFound means 0.
-	msg, err := s.stream.GetLastMsgForSubject(context.Background(), subject)
-	if err != nil {
-		return 0
-	}
-	_ = msg
-	return 1
-}
-
 func (s *PurgeRunResidueIntegrationSuite) subjectEmpty(subject string) bool {
 	_, err := s.stream.GetLastMsgForSubject(context.Background(), subject)
 	return err != nil
@@ -80,8 +66,7 @@ func (s *PurgeRunResidueIntegrationSuite) runHandler(wfID ext.WFID) {
 	s.Require().NoError(err)
 
 	result := handler.Handle(context.Background(), task, 1)
-	s.Equal(int(0), int(result.RetryDelay)) // Processed()
-	_ = result
+	s.Equal(intr.Processed(), result)
 }
 
 func (s *PurgeRunResidueIntegrationSuite) TestRemovesAllSubjectFamilies() {
@@ -129,8 +114,8 @@ func (s *PurgeRunResidueIntegrationSuite) TestIdempotent() {
 	result1 := handler.Handle(context.Background(), task, 1)
 	result2 := handler.Handle(context.Background(), task, 2)
 
-	s.Equal(result1.RetryDelay, result2.RetryDelay)
-	s.Equal(result1.Action, result2.Action)
+	s.Equal(intr.Processed(), result1)
+	s.Equal(intr.Processed(), result2)
 }
 
 func (s *PurgeRunResidueIntegrationSuite) TestNoMessages() {
@@ -141,8 +126,7 @@ func (s *PurgeRunResidueIntegrationSuite) TestNoMessages() {
 	s.Require().NoError(err)
 
 	result := handler.Handle(context.Background(), task, 1)
-	s.Equal(int(0), int(result.RetryDelay))
-	_ = result
+	s.Equal(intr.Processed(), result)
 }
 
 func (s *PurgeRunResidueIntegrationSuite) TestPreservesDurableRecord() {

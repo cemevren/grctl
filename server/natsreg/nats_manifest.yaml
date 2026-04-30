@@ -11,12 +11,11 @@ streams:
 
       grctl_directive:
         name: grctl_directive_cons
-        subject: grctl_events.>
+        subject: grctl_directive.>
 
       grctl_bg_task:
         name: grctl_bg_task_cons
         subject: grctl_bg_task
-
 
 subjects:
   directive:
