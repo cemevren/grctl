@@ -43,7 +43,6 @@ def _worker_process_main(timeout_seconds: float = 60.0) -> None:
     asyncio.run(run_worker())
 
 
-@pytest.mark.skip(reason="There is a known issue with step timeouts")
 async def test_step_timeout() -> None:
     """Step with a 2s timeout that sleeps 30s should fail."""
     connection = await Connection.connect()

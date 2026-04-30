@@ -202,6 +202,7 @@ class ChildWorkflowStarted(msgspec.Struct):
     run_id: str
     wf_type: str
     wf_id: str
+    input: Any | None = None
 
 
 class ParentEventSent(msgspec.Struct):
@@ -209,6 +210,8 @@ class ParentEventSent(msgspec.Struct):
 
     event_name: str
     payload: Any
+    parent_wf_type: str
+    parent_wf_id: str
 
 
 RunEvents = RunCancelScheduled | RunCancelled | RunCompleted | RunFailed | RunScheduled | RunStarted | RunTimeout

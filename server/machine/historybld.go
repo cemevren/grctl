@@ -186,7 +186,7 @@ func (p *HistoryBuilder) StepCompleted(d ext.Directive) (ext.HistoryEvent, error
 	return e, nil
 }
 
-func (p *HistoryBuilder) StepTimedout(d ext.Directive) (ext.HistoryEvent, error) {
+func (p *HistoryBuilder) StepTimedout(d ext.Directive, currentState ext.RunState) (ext.HistoryEvent, error) {
 	msg, ok := d.Msg.(*ext.StepTimeout)
 	if !ok {
 		return ext.HistoryEvent{}, fmt.Errorf("cannot publish step timeout event: expected StepTimeout but got %T", d.Msg)
@@ -194,7 +194,7 @@ func (p *HistoryBuilder) StepTimedout(d ext.Directive) (ext.HistoryEvent, error)
 
 	stepName := msg.StepName
 
-	durationMS := int64(0)
+	durationMS := time.Since(currentState.EnteredAt).Milliseconds()
 
 	e := ext.HistoryEvent{
 		WFID:      d.RunInfo.WFID,

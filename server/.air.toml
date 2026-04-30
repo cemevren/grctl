@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 [build]
   args_bin = ["-c", "../config/grctl.yaml", "--in-memory"]
   bin = "./tmp/main"
-  cmd = "go build -o ./tmp/main ./cmd/grctld"
+  cmd = "go build -o ./tmp/main ./grctld"
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "data"]
   exclude_file = []

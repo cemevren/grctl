@@ -20,7 +20,7 @@ jobs:
       sdk_python_tag_name: ${{ steps.release.outputs['sdk_python--tag_name'] }}
       server_tag_name: ${{ steps.release.outputs['server--tag_name'] }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -227,22 +227,22 @@ func (s *DirectiveHandlerTestSuite) TestDirectiveHandler_RejectsDirectiveWhenRun
 
 	directives := []ext.Directive{
 		{
-			ID:   ext.NewDirectiveID(),
-			Kind: ext.DirectiveKindEvent,
+			ID:      ext.NewDirectiveID(),
+			Kind:    ext.DirectiveKindEvent,
 			RunInfo: ext.RunInfo{WFID: s.wfID, ID: s.runID, WFType: s.wfType},
-			Msg:  &ext.Event{EventName: "test-event"},
+			Msg:     &ext.Event{EventName: "test-event"},
 		},
 		{
-			ID:   ext.NewDirectiveID(),
-			Kind: ext.DirectiveKindCancel,
+			ID:      ext.NewDirectiveID(),
+			Kind:    ext.DirectiveKindCancel,
 			RunInfo: ext.RunInfo{WFID: s.wfID, ID: s.runID, WFType: s.wfType},
-			Msg:  &ext.Cancel{Reason: "test"},
+			Msg:     &ext.Cancel{Reason: "test"},
 		},
 		{
-			ID:   ext.NewDirectiveID(),
-			Kind: ext.DirectiveKindStepTimeout,
+			ID:      ext.NewDirectiveID(),
+			Kind:    ext.DirectiveKindStepTimeout,
 			RunInfo: ext.RunInfo{WFID: s.wfID, ID: s.runID, WFType: s.wfType},
-			Msg:  &ext.StepTimeout{StepName: "test-step"},
+			Msg:     &ext.StepTimeout{StepName: "test-step"},
 		},
 	}
 
