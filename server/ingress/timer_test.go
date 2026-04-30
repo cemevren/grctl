@@ -4,9 +4,9 @@ package ingress
 
 import (
 	"context"
-	"grctl/server/testutil"
 	"grctl/server/natsreg"
 	"grctl/server/store"
+	"grctl/server/testutil"
 	intr "grctl/server/types"
 	ext "grctl/server/types/external/v1"
 	"sync/atomic"

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type UpdateBldSuite struct {
@@ -156,7 +157,7 @@ func (s *UpdateBldSuite) TestBuildStepTimeout() {
 
 	updates, err := s.f.BuildStepTimeout(d, currentState)
 	require.NoError(s.T(), err)
-	require.Len(s.T(), updates, 5)
+	require.Len(s.T(), updates, 6)
 
 	rsu, found := findRunStateUpdate(updates)
 	require.True(s.T(), found, "RunStateUpdate not found in updates")
@@ -233,7 +234,7 @@ func (s *UpdateBldSuite) TestBuildStepTimeout_ActiveDirectiveMatches() {
 
 	updates, err := s.f.BuildStepTimeout(d, currentState)
 	require.NoError(s.T(), err)
-	require.Len(s.T(), updates, 5)
+	require.Len(s.T(), updates, 6)
 }
 
 func (s *UpdateBldSuite) TestBuildStepTimeout_DropsStaleAfterTerminalState() {
@@ -456,4 +457,71 @@ func (s *UpdateBldSuite) TestFailRun_IncludesRunErrorUpdate() {
 	require.Equal(s.T(), d.RunInfo.WFID, reu.WFID)
 	require.Equal(s.T(), d.RunInfo.ID, reu.RunID)
 	require.Equal(s.T(), errDetails, reu.Error)
+}
+
+// --- PurgeRunResidue bg-task emission ---
+
+func makeCancelDirective() ext.Directive {
+	startedAt := time.Now().UTC()
+	return ext.Directive{
+		ID:        ext.NewDirectiveID(),
+		Timestamp: time.Now().UTC(),
+		Kind:      ext.DirectiveKindCancel,
+		RunInfo: ext.RunInfo{
+			WFID:      ext.NewWFID(),
+			WFType:    ext.NewWFType("test"),
+			ID:        ext.NewRunID(),
+			StartedAt: &startedAt,
+		},
+		Msg: &ext.Cancel{Reason: "test"},
+	}
+}
+
+func (s *UpdateBldSuite) TestCompleteRun_EmitsPurgeTask() {
+	d := makeCompleteDirective(nil)
+	currentState := ext.RunState{Kind: ext.RunStateStep}
+
+	updates, err := s.f.CompleteRun(d, currentState)
+	require.NoError(s.T(), err)
+
+	btu, found := findBackgroundTaskUpdate(updates)
+	require.True(s.T(), found, "BackgroundTaskUpdate not found")
+	require.Equal(s.T(), ext.BackgroundTaskKindPurgeRunResidue, btu.Task.Kind)
+
+	var payload ext.PurgeRunResiduePayload
+	require.NoError(s.T(), msgpack.Unmarshal(btu.Task.Payload, &payload))
+	require.Equal(s.T(), d.RunInfo.WFID, payload.WFID)
+}
+
+func (s *UpdateBldSuite) TestFailRun_EmitsPurgeTask() {
+	errDetails := ext.ErrorDetails{Type: "TestError", Message: "something broke"}
+	d := makeFailDirective(errDetails)
+	currentState := ext.RunState{Kind: ext.RunStateStep}
+
+	updates, err := s.f.FailRun(d, currentState)
+	require.NoError(s.T(), err)
+
+	btu, found := findBackgroundTaskUpdate(updates)
+	require.True(s.T(), found, "BackgroundTaskUpdate not found")
+	require.Equal(s.T(), ext.BackgroundTaskKindPurgeRunResidue, btu.Task.Kind)
+
+	var payload ext.PurgeRunResiduePayload
+	require.NoError(s.T(), msgpack.Unmarshal(btu.Task.Payload, &payload))
+	require.Equal(s.T(), d.RunInfo.WFID, payload.WFID)
+}
+
+func (s *UpdateBldSuite) TestCancelRun_EmitsPurgeTask() {
+	d := makeCancelDirective()
+	currentState := ext.RunState{Kind: ext.RunStateStep}
+
+	updates, err := s.f.CancelRun(d, currentState)
+	require.NoError(s.T(), err)
+
+	btu, found := findBackgroundTaskUpdate(updates)
+	require.True(s.T(), found, "BackgroundTaskUpdate not found")
+	require.Equal(s.T(), ext.BackgroundTaskKindPurgeRunResidue, btu.Task.Kind)
+
+	var payload ext.PurgeRunResiduePayload
+	require.NoError(s.T(), msgpack.Unmarshal(btu.Task.Payload, &payload))
+	require.Equal(s.T(), d.RunInfo.WFID, payload.WFID)
 }

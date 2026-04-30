@@ -38,33 +38,12 @@ jobs:
         with:
           go-version: "1.25.0"
 
+      - name: Install mise
+        uses: jdx/mise-action@v2
+
       - name: Build Server Binaries
-        run: |
-          cd server
-          mkdir -p dist
-          # Build for multiple platforms
-          # For Linux/Mac/Windows, x64/arm64
-          platforms=("linux/amd64" "linux/arm64" "darwin/amd64" "darwin/arm64" "windows/amd64")
-          for platform in "${platforms[@]}"; do
-            platform_split=(${platform//\// })
-            export GOOS=${platform_split[0]}
-            export GOARCH=${platform_split[1]}
-
-            ext=""
-            if [ "$GOOS" == "windows" ]; then ext=".exe"; fi
-
-            echo "Building for $GOOS/$GOARCH..."
-            go build -ldflags="-s -w" -o "dist/grctld${ext}" ./cmd/grctld
-            go build -ldflags="-s -w" -o "dist/grctl${ext}" ./cmd/grctl
-
-            # Archive the binaries
-            if [ "$GOOS" == "windows" ]; then
-              zip "dist/grctl-$GOOS-$GOARCH.zip" "dist/grctld${ext}" "dist/grctl${ext}"
-            else
-              tar -czvf "dist/grctl-$GOOS-$GOARCH.tar.gz" -C dist "grctld" "grctl"
-            fi
-            rm "dist/grctld${ext}" "dist/grctl${ext}"
-          done
+        run: mise run dist
+        working-directory: server
 
       # --- PYTHON SDK ASSETS ---
       - name: Install uv

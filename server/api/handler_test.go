@@ -9,9 +9,9 @@ import (
 
 	"grctl/server/api"
 	"grctl/server/config"
-	"grctl/server/testutil"
 	"grctl/server/natsreg"
 	"grctl/server/store"
+	"grctl/server/testutil"
 	ext "grctl/server/types/external/v1"
 
 	"grctl/server/server"

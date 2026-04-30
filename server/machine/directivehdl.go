@@ -32,6 +32,11 @@ func (dh *DirectiveHandler) Handle(ctx context.Context, d ext.Directive, numDeli
 	if err != nil {
 		return intr.Retryable(NackDelay)
 	}
+	if sn.RunState.IsTerminal() {
+		slog.Debug("rejecting directive for terminal run", "directiveID", d.ID, "wfID", d.RunInfo.WFID, "runStateKind", sn.RunState.Kind)
+		return intr.Processed()
+	}
+
 	dispatchCurrentEventAfterStore := d.Kind == ext.DirectiveKindEvent &&
 		sn.RunState.Kind == ext.RunStateWaitEvent &&
 		sn.Event.ID == ""

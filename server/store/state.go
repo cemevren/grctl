@@ -319,6 +319,22 @@ func (s *StateStore) DeleteInboxEvent(ctx context.Context, seqID uint64) error {
 	return nil
 }
 
+func (s *StateStore) PurgeRunResidue(ctx context.Context, wfID ext.WFID) error {
+	patterns := []string{
+		natsreg.Manifest.DirectivePurgePattern(wfID),
+		natsreg.Manifest.TimerPurgePattern(wfID),
+		natsreg.Manifest.CancelInboxPurgePattern(wfID),
+		natsreg.Manifest.EventInboxPurgePattern(wfID),
+		natsreg.Manifest.WorkerTaskPurgePattern(wfID),
+	}
+	for _, pattern := range patterns {
+		if err := s.stream.Purge(ctx, jetstream.WithPurgeSubject(pattern)); err != nil {
+			return fmt.Errorf("failed to purge subject %s: %w", pattern, err)
+		}
+	}
+	return nil
+}
+
 func (s *StateStore) GetCancelDirective(ctx context.Context, wfID ext.WFID) (ext.Directive, error) {
 	subject := natsreg.Manifest.CancelInboxSubject(wfID)
 

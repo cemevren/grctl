@@ -77,7 +77,7 @@ func NewServer(
 
 	directiveHandler := machine.NewDirectiveHandler(stateStore)
 	timerMsgHandler := machine.NewTimerMsgHandler(stateStore, maxTimerDeliveries)
-	bgTaskHandler := machine.NewBgTaskHandler(timerStream, stateStore, maxBgTaskDeliveries)
+	bgTaskHandler := machine.NewBgTaskHandler(timerStream, stateStore, stateStore, maxBgTaskDeliveries)
 
 	bgTaskQueue, err := ingress.NewBgTaskQueue(ctx, stateStream)
 	if err != nil {

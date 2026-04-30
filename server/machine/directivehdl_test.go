@@ -5,8 +5,8 @@ package machine_test
 import (
 	"context"
 	"grctl/server/machine"
-	"grctl/server/testutil"
 	"grctl/server/store"
+	"grctl/server/testutil"
 	ext "grctl/server/types/external/v1"
 	"testing"
 
@@ -214,6 +214,63 @@ func (s *DirectiveHandlerTestSuite) TestWaitEventWithInboxEventDispatches() {
 	s.Equal(ext.RunStateStep, snapshot.RunState.Kind)
 	// LastEventSeqID must point at the inbox event, proving it was dispatched.
 	s.Equal(eventSeqID, snapshot.RunState.LastEventSeqID)
+}
+
+// Any directive kind arriving after the run has reached a terminal state
+// is silently dropped — the run must not transition out of terminal.
+func (s *DirectiveHandlerTestSuite) TestDirectiveHandler_RejectsDirectiveWhenRunTerminal() {
+	terminalKinds := []ext.RunStateKind{
+		ext.RunStateComplete,
+		ext.RunStateFail,
+		ext.RunStateCancel,
+	}
+
+	directives := []ext.Directive{
+		{
+			ID:   ext.NewDirectiveID(),
+			Kind: ext.DirectiveKindEvent,
+			RunInfo: ext.RunInfo{WFID: s.wfID, ID: s.runID, WFType: s.wfType},
+			Msg:  &ext.Event{EventName: "test-event"},
+		},
+		{
+			ID:   ext.NewDirectiveID(),
+			Kind: ext.DirectiveKindCancel,
+			RunInfo: ext.RunInfo{WFID: s.wfID, ID: s.runID, WFType: s.wfType},
+			Msg:  &ext.Cancel{Reason: "test"},
+		},
+		{
+			ID:   ext.NewDirectiveID(),
+			Kind: ext.DirectiveKindStepTimeout,
+			RunInfo: ext.RunInfo{WFID: s.wfID, ID: s.runID, WFType: s.wfType},
+			Msg:  &ext.StepTimeout{StepName: "test-step"},
+		},
+	}
+
+	for _, terminalKind := range terminalKinds {
+		for _, d := range directives {
+			s.Run(string(terminalKind)+"/"+string(d.Kind), func() {
+				ctx := context.Background()
+
+				err := s.store.ApplyStateUpdates(ctx, []store.StateUpdate{
+					store.RunStateUpdate{
+						State: ext.RunState{
+							Kind:  terminalKind,
+							WFID:  s.wfID,
+							RunID: s.runID,
+						},
+					},
+				})
+				s.Require().NoError(err)
+
+				result := s.handler.Handle(ctx, d, 1)
+				s.True(result.IsProcessed())
+
+				snapshot, err := s.store.GetStateSnapshot(ctx, s.wfID, s.runID)
+				s.Require().NoError(err)
+				s.Equal(terminalKind, snapshot.RunState.Kind)
+			})
+		}
+	}
 }
 
 // delivering the same directive twice is a no-op on the second delivery

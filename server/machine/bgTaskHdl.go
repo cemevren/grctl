@@ -19,16 +19,22 @@ type InboxEventDeleter interface {
 	DeleteInboxEvent(ctx context.Context, seqID uint64) error
 }
 
+type RunResiduePurger interface {
+	PurgeRunResidue(ctx context.Context, wfID ext.WFID) error
+}
+
 type BgTaskHandler struct {
 	timers        TimerCanceler
 	inbox         InboxEventDeleter
+	residuePurger RunResiduePurger
 	maxDeliveries uint64
 }
 
-func NewBgTaskHandler(timers TimerCanceler, inbox InboxEventDeleter, maxDeliveries uint64) *BgTaskHandler {
+func NewBgTaskHandler(timers TimerCanceler, inbox InboxEventDeleter, residuePurger RunResiduePurger, maxDeliveries uint64) *BgTaskHandler {
 	return &BgTaskHandler{
 		timers:        timers,
 		inbox:         inbox,
+		residuePurger: residuePurger,
 		maxDeliveries: maxDeliveries,
 	}
 }
@@ -49,6 +55,8 @@ func (h *BgTaskHandler) Handle(ctx context.Context, task ext.BackgroundTask, num
 		return h.handleDeleteTimer(ctx, task)
 	case ext.BackgroundTaskKindDeleteInboxEvent:
 		return h.handleDeleteInboxEvent(ctx, task)
+	case ext.BackgroundTaskKindPurgeRunResidue:
+		return h.handlePurgeRunResidue(ctx, task)
 	default:
 		slog.Warn("unknown background task kind, discarding", "kind", task.Kind)
 		return intr.Processed()
@@ -102,5 +110,27 @@ func (h *BgTaskHandler) handleDeleteInboxEvent(ctx context.Context, task ext.Bac
 	}
 
 	slog.Debug("inbox event deleted by background task", "seqID", payload.SeqID)
+	return intr.Processed()
+}
+
+func (h *BgTaskHandler) handlePurgeRunResidue(ctx context.Context, task ext.BackgroundTask) intr.HandleResult {
+	var payload ext.PurgeRunResiduePayload
+	if err := msgpack.Unmarshal(task.Payload, &payload); err != nil {
+		slog.Error("failed to unmarshal purge run residue payload, discarding",
+			"deduplicationID", task.DeduplicationID,
+			"error", err,
+		)
+		return intr.Processed()
+	}
+
+	if err := h.residuePurger.PurgeRunResidue(ctx, payload.WFID); err != nil {
+		slog.Warn("failed to purge run residue, will retry",
+			"wfID", payload.WFID,
+			"error", err,
+		)
+		return intr.Retryable(NackDelay)
+	}
+
+	slog.Debug("run residue purged by background task", "wfID", payload.WFID)
 	return intr.Processed()
 }
