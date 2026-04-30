@@ -27,6 +27,7 @@ subjects:
     subject_patterns:
       publish: grctl_directive.{wf_type}.{wf_id}.{run_id}
       listen: grctl_directive.>
+      purge: grctl_directive.*.{wf_id}.>
   history:
     # Worker(TaskEvents) -> HistorySubject
     # Server(Start/Cancel/Terminate/Complete/Fail) -> HistorySubject
@@ -39,6 +40,7 @@ subjects:
     subject_patterns:
       publish: grctl_timers.{wf_id}.{kind}.{timer_id}
       listen: grctl_timers.>
+      purge: grctl_timers.{wf_id}.>
   timer_fired:
     stream: grctl_state
     subject_patterns:
@@ -60,11 +62,13 @@ subjects:
     subject_patterns:
       publish: grctl_cancel.{wf_id}
       listen: grctl_cancel.>
+      purge: grctl_cancel.{wf_id}
   events:
     stream: grctl_state
     subject_patterns:
       publish: grctl_events.{wf_id}
       listen: grctl_events.>
+      purge: grctl_events.{wf_id}
   run_state:
     stream: grctl_state
     subject_patterns:
@@ -76,6 +80,7 @@ subjects:
       publish: grctl_worker_task.{wf_type}.{wf_id}.{run_id}
       listen: grctl_worker_task.>
       queue_group: grctl_worker_{wf_type}
+      purge: grctl_worker_task.*.{wf_id}.>
 
   bg_task:
     stream: grctl_state

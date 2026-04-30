@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"grctl/server/machine"
 	"grctl/server/store"
 )
 
@@ -32,6 +33,10 @@ var ApiErrorMap = map[error]grctlError{
 	store.ErrWorkflowRunNotFound: {
 		Code:    4002,
 		Message: "Workflow run not found",
+	},
+	machine.ErrRunTerminal: {
+		Code:    4003,
+		Message: "Workflow run has already finished and cannot accept new commands",
 	},
 	ErrInvalidMessageType: {
 		Code:    4005,

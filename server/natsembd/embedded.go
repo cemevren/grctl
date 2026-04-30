@@ -17,7 +17,6 @@ import (
 
 const embeddedServerReadyTimeout = 15 * time.Second
 
-
 func RunEmbeddedServerWithConfig(natsCfg config.NATSConfig) (*nats.Conn, jetstream.JetStream, *server.Server, error) {
 	opts, err := resolveEmbeddedOptions(natsCfg)
 	if err != nil {

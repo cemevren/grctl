@@ -4,8 +4,8 @@ package store_test
 
 import (
 	"context"
-	"grctl/server/testutil"
 	"grctl/server/store"
+	"grctl/server/testutil"
 	ext "grctl/server/types/external/v1"
 	"testing"
 

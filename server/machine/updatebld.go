@@ -377,7 +377,7 @@ func (f *UpdateFactory) EventReceived(d ext.Directive) ([]store.StateUpdate, err
 }
 
 func (f *UpdateFactory) CompleteRun(d ext.Directive, currentState ext.RunState) ([]store.StateUpdate, error) {
-	updates := make([]store.StateUpdate, 0, 4)
+	updates := make([]store.StateUpdate, 0, 5)
 	ri := d.RunInfo
 	ri, err := ri.Complete(d.Timestamp)
 	if err != nil {
@@ -409,6 +409,12 @@ func (f *UpdateFactory) CompleteRun(d ext.Directive, currentState ext.RunState) 
 		})
 	}
 
+	purgeTask, err := ext.NewPurgeRunResidueTask(d.ID, d.RunInfo.WFID)
+	if err != nil {
+		return nil, fmt.Errorf("build purge run residue task: %w", err)
+	}
+	updates = append(updates, store.BackgroundTaskUpdate{Task: purgeTask})
+
 	return updates, nil
 }
 
@@ -426,7 +432,7 @@ func (f *UpdateFactory) CancelReceived(d ext.Directive) ([]store.StateUpdate, er
 }
 
 func (f *UpdateFactory) CancelRun(d ext.Directive, currentState ext.RunState) ([]store.StateUpdate, error) {
-	updates := make([]store.StateUpdate, 0, 3)
+	updates := make([]store.StateUpdate, 0, 4)
 	ri := d.RunInfo
 	ri, err := ri.Cancel(d.Timestamp)
 	if err != nil {
@@ -450,11 +456,17 @@ func (f *UpdateFactory) CancelRun(d ext.Directive, currentState ext.RunState) ([
 		ExpectedSeq: currentState.SeqID,
 	})
 
+	purgeTask, err := ext.NewPurgeRunResidueTask(d.ID, d.RunInfo.WFID)
+	if err != nil {
+		return nil, fmt.Errorf("build purge run residue task: %w", err)
+	}
+	updates = append(updates, store.BackgroundTaskUpdate{Task: purgeTask})
+
 	return updates, nil
 }
 
 func (f *UpdateFactory) FailRun(d ext.Directive, currentState ext.RunState) ([]store.StateUpdate, error) {
-	updates := make([]store.StateUpdate, 0, 4)
+	updates := make([]store.StateUpdate, 0, 5)
 	msg, ok := d.Msg.(*ext.Fail)
 	if !ok || msg == nil {
 		return nil, fmt.Errorf("can not create run failed state update: expected RunFailed but got %T", d.Msg)
@@ -488,6 +500,12 @@ func (f *UpdateFactory) FailRun(d ext.Directive, currentState ext.RunState) ([]s
 		RunID: d.RunInfo.ID,
 		Error: msg.Error,
 	})
+
+	purgeTask, err := ext.NewPurgeRunResidueTask(d.ID, d.RunInfo.WFID)
+	if err != nil {
+		return nil, fmt.Errorf("build purge run residue task: %w", err)
+	}
+	updates = append(updates, store.BackgroundTaskUpdate{Task: purgeTask})
 
 	return updates, nil
 }

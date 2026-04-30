@@ -400,6 +400,41 @@ func (m *NATSManifest) WorkerTaskListenerPattern() string {
 	return m.subjectPattern("worker_task", "listen")
 }
 
+// DirectivePurgePattern returns the purge filter subject for all directives of a workflow run.
+// Pattern: grctl_directive.*.{wfID}.>
+func (m *NATSManifest) DirectivePurgePattern(wfID ext.WFID) string {
+	pattern := m.subjectPattern("directive", "purge")
+	return substituteParams(pattern, map[string]string{"wf_id": wfID.String()})
+}
+
+// TimerPurgePattern returns the purge filter subject for all timers of a workflow run.
+// Pattern: grctl_timers.{wfID}.>
+func (m *NATSManifest) TimerPurgePattern(wfID ext.WFID) string {
+	pattern := m.subjectPattern("timer", "purge")
+	return substituteParams(pattern, map[string]string{"wf_id": wfID.String()})
+}
+
+// CancelInboxPurgePattern returns the purge filter subject for the cancel inbox of a workflow run.
+// Pattern: grctl_cancel.{wfID}
+func (m *NATSManifest) CancelInboxPurgePattern(wfID ext.WFID) string {
+	pattern := m.subjectPattern("cancel", "purge")
+	return substituteParams(pattern, map[string]string{"wf_id": wfID.String()})
+}
+
+// EventInboxPurgePattern returns the purge filter subject for the event inbox of a workflow run.
+// Pattern: grctl_events.{wfID}
+func (m *NATSManifest) EventInboxPurgePattern(wfID ext.WFID) string {
+	pattern := m.subjectPattern("events", "purge")
+	return substituteParams(pattern, map[string]string{"wf_id": wfID.String()})
+}
+
+// WorkerTaskPurgePattern returns the purge filter subject for all worker tasks of a workflow run.
+// Pattern: grctl_worker_task.*.{wfID}.>
+func (m *NATSManifest) WorkerTaskPurgePattern(wfID ext.WFID) string {
+	pattern := m.subjectPattern("worker_task", "purge")
+	return substituteParams(pattern, map[string]string{"wf_id": wfID.String()})
+}
+
 // BgTaskSubject returns the subject for publishing background tasks.
 func (m *NATSManifest) BgTaskSubject() string {
 	return m.subjectPattern("bg_task", "publish")

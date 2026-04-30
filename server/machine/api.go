@@ -12,6 +12,8 @@ import (
 	ext "grctl/server/types/external/v1"
 )
 
+var ErrRunTerminal = errors.New("workflow run is in a terminal state")
+
 type RunStore interface {
 	CreateRunInfo(ctx context.Context, info *ext.RunInfo) error
 	GetRunByWFID(ctx context.Context, wfID ext.WFID) (ext.RunInfo, uint64, error)
@@ -80,6 +82,9 @@ func (m *RunAPI) Send(ctx context.Context, cmd *ext.Command) error {
 	if err != nil {
 		return fmt.Errorf("failed to get run info from store: %w", err)
 	}
+	if runInfo.Status.IsTerminal() {
+		return ErrRunTerminal
+	}
 
 	directive := ext.Directive{
 		ID:        ext.NewDirectiveID(),
@@ -120,6 +125,9 @@ func (m *RunAPI) Cancel(ctx context.Context, cmd *ext.Command) error {
 	runInfo, _, err := m.store.GetRunByWFID(ctx, wfID)
 	if err != nil {
 		return fmt.Errorf("failed to get run info from store: %w", err)
+	}
+	if runInfo.Status.IsTerminal() {
+		return ErrRunTerminal
 	}
 
 	directive := ext.Directive{
