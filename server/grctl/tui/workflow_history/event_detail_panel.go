@@ -159,6 +159,20 @@ func buildKeyValueLines(event *ext.HistoryEvent) []string {
 	case *ext.EventReceived:
 		lines = appendKV(lines, "Event Name", msg.EventName)
 
+	case *ext.ParentEventSent:
+		lines = appendKV(lines, "Event Name", msg.EventName)
+		if msg.ParentWFType != "" {
+			lines = appendKV(lines, "Parent", msg.ParentWFType)
+		}
+		if msg.ParentWFID != "" {
+			lines = appendKV(lines, "Parent WF ID", msg.ParentWFID)
+		}
+
+	case *ext.ChildWorkflowStarted:
+		lines = appendKV(lines, "Workflow", msg.WFType)
+		lines = appendKV(lines, "Workflow ID", msg.WFID.String())
+		lines = appendKV(lines, "Run ID", msg.RunID.String())
+
 	case nil:
 		// No fields for nil message
 	}
@@ -186,6 +200,10 @@ func buildDataSections(event *ext.HistoryEvent, width int) []string {
 		lines = appendErrorSection(lines, msg.Error, width)
 	case *ext.EventReceived:
 		lines = appendDataSection(lines, "Payload", msg.Payload, width)
+	case *ext.ParentEventSent:
+		lines = appendDataSection(lines, "Payload", msg.Payload, width)
+	case *ext.ChildWorkflowStarted:
+		lines = appendDataSection(lines, "Input", msg.Input, width)
 	}
 
 	return lines

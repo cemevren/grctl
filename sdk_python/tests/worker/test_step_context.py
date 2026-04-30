@@ -278,20 +278,27 @@ class TestSendToParent:
     # Test 6: replay path — skips publish
     async def test_replay_skips_publish(self) -> None:
         runtime = _setup_runtime([])
+        parent_run = Mock(spec=RunInfo)
+        parent_run.wf_id = "parent-wf"
+        parent_run.wf_type = "parent-wf"
         operation_id = runtime.generate_operation_id(
             "send_to_parent", {"event_name": "order.completed", "payload": None}
         )
         history = [
             _make_event(
                 HistoryKind.parent_event_sent,
-                ParentEventSent(event_name="order.completed", payload=None),
+                ParentEventSent(
+                    event_name="order.completed",
+                    payload=None,
+                    parent_wf_type=parent_run.wf_type,
+                    parent_wf_id=parent_run.wf_id,
+                ),
                 operation_id,
             )
         ]
         runtime = _setup_runtime(history)
         runtime.publisher.publish_cmd = AsyncMock()  # ty:ignore[invalid-assignment]
-        parent_run = Mock(spec=RunInfo)
-        parent_run.wf_id = "parent-wf"
+
         ctx = _make_ctx(parent_run=parent_run)
 
         await ctx.send_to_parent("order.completed")
@@ -331,6 +338,9 @@ class TestSequentialReplay:
     async def test_sequential_start_then_send_to_parent_replay(self) -> None:
         original_run_id = "01JAAAAAAAAAAAAAAAAAAAAAAB"
         runtime = _setup_runtime([])
+        parent_run = Mock(spec=RunInfo)
+        parent_run.wf_id = "parent-wf"
+        parent_run.wf_type = "parent-wf"
 
         op1 = runtime.generate_operation_id(
             "start",
@@ -344,12 +354,17 @@ class TestSequentialReplay:
                 ChildWorkflowStarted(run_id=original_run_id, wf_type="order", wf_id="order-1"),
                 op1,
             ),
-            _make_event(HistoryKind.parent_event_sent, ParentEventSent(event_name="started", payload=None), op2),
+            _make_event(
+                HistoryKind.parent_event_sent,
+                ParentEventSent(
+                    event_name="started", payload=None, parent_wf_type=parent_run.wf_type, parent_wf_id=parent_run.wf_id
+                ),
+                op2,
+            ),
         ]
         runtime = _setup_runtime(history)
         runtime.publisher.publish_cmd = AsyncMock()  # ty:ignore[invalid-assignment]
-        parent_run = Mock(spec=RunInfo)
-        parent_run.wf_id = "parent-wf"
+
         ctx = _make_ctx(parent_run=parent_run)
 
         with patch("grctl.worker.context.WorkflowHandle") as mock_handle_cls:

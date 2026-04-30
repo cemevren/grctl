@@ -50,6 +50,10 @@ func eventDetails(event *ext.HistoryEvent) string {
 		return taskFailedDetail(msg)
 	case *ext.TaskCancelled:
 		return taskDetail(msg.TaskName)
+	case *ext.ChildWorkflowStarted:
+		return childStartedDetail(msg)
+	case *ext.ParentEventSent:
+		return parentEventSentDetail(msg)
 	}
 	return "-"
 }
@@ -108,6 +112,19 @@ func taskCompletedDetail(msg *ext.TaskCompleted) string {
 
 func taskFailedDetail(msg *ext.TaskFailed) string {
 	return key("Task:") + " " + msg.TaskName + " " + errorDetail(msg.Error)
+}
+
+func parentEventSentDetail(msg *ext.ParentEventSent) string {
+	detail := key("Event:") + " " + msg.EventName
+	if msg.ParentWFType != "" {
+		detail += " " + key("Parent:") + " " + msg.ParentWFType
+	}
+	detail += " " + key("Payload:") + " " + formatJSON(msg.Payload)
+	return detail
+}
+
+func childStartedDetail(msg *ext.ChildWorkflowStarted) string {
+	return key("Child:") + " " + msg.WFType + " " + key("Input:") + " " + formatJSON(msg.Input)
 }
 
 func errorDetail(err ext.ErrorDetails) string {

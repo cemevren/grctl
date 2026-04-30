@@ -23,6 +23,7 @@ var (
 	ColorCategoryStep  = lipgloss.Color("14") // Bright Cyan
 	ColorCategoryTask  = lipgloss.Color("13") // Bright Magenta
 	ColorCategoryEvent = lipgloss.Color("11") // Bright Yellow
+	ColorCategoryChild = lipgloss.Color("10") // Bright Green
 
 	// Table colors
 	ColorTableBorder = lipgloss.Color("238")

@@ -30,7 +30,15 @@ const HistoryKindEventReceived HistoryKind = "event.received"
 const HistoryKindTaskCancelled HistoryKind = "task.cancelled"
 const HistoryKindTaskCompleted HistoryKind = "task.completed"
 const HistoryKindTaskFailed HistoryKind = "task.failed"
+const HistoryKindTaskAttemptFailed HistoryKind = "task.attempt_failed"
 const HistoryKindTaskStarted HistoryKind = "task.started"
+
+const HistoryKindTimestampRecorded HistoryKind = "timestamp.recorded"
+const HistoryKindRandomRecorded HistoryKind = "random.recorded"
+const HistoryKindUUIDRecorded HistoryKind = "uuid.recorded"
+const HistoryKindSleepRecorded HistoryKind = "sleep.recorded"
+const HistoryKindChildStarted HistoryKind = "child.started"
+const HistoryKindParentEventSent HistoryKind = "parent.event_sent"
 
 // HistoryEvent represents an envelope for history messages.
 type HistoryEvent struct {
@@ -152,6 +160,48 @@ type TaskCancelled struct {
 	DurationMS int64  `json:"duration_ms" msgpack:"duration_ms"`
 }
 
+// TaskAttemptFailed represents a failed task retry attempt (task will be retried).
+type TaskAttemptFailed struct {
+	TaskID           string       `json:"task_id" msgpack:"task_id"`
+	TaskName         string       `json:"task_name" msgpack:"task_name"`
+	StepName         string       `json:"step_name" msgpack:"step_name"`
+	Attempt          int          `json:"attempt" msgpack:"attempt"`
+	MaxAttempts      int          `json:"max_attempts" msgpack:"max_attempts"`
+	Error            ErrorDetails `json:"error" msgpack:"error"`
+	NextRetryDelayMS int64        `json:"next_retry_delay_ms" msgpack:"next_retry_delay_ms"`
+	DurationMS       int64        `json:"duration_ms" msgpack:"duration_ms"`
+}
+
+type TimestampRecorded struct {
+	Value time.Time `json:"value" msgpack:"value"`
+}
+
+type RandomRecorded struct {
+	Value float64 `json:"value" msgpack:"value"`
+}
+
+type UUIDRecorded struct {
+	Value string `json:"value" msgpack:"value"`
+}
+
+type SleepRecorded struct {
+	DurationMS int64 `json:"duration_ms" msgpack:"duration_ms"`
+}
+
+type ChildWorkflowStarted struct {
+	RunID  RunID  `json:"run_id" msgpack:"run_id"`
+	WFType string `json:"wf_type" msgpack:"wf_type"`
+	WFID   WFID   `json:"wf_id" msgpack:"wf_id"`
+	Input  any    `json:"input,omitempty" msgpack:"input,omitempty"`
+}
+
+type ParentEventSent struct {
+	EventName    string `json:"event_name" msgpack:"event_name"`
+	Payload      any    `json:"payload" msgpack:"payload"`
+	ParentWFType string `json:"parent_wf_type,omitempty" msgpack:"parent_wf_type,omitempty"`
+	ParentWFID   string `json:"parent_wf_id,omitempty" msgpack:"parent_wf_id,omitempty"`
+}
+
 func (RunScheduled) isHistoryMessage()       {}
 func (RunStarted) isHistoryMessage()         {}
 func (RunCompleted) isHistoryMessage()       {}
@@ -170,18 +220,28 @@ func (StepTimedout) isHistoryMessage()  {}
 func (WaitEventStarted) isHistoryMessage() {}
 func (EventReceived) isHistoryMessage()    {}
 
-func (TaskStarted) isHistoryMessage()   {}
-func (TaskCompleted) isHistoryMessage() {}
-func (TaskFailed) isHistoryMessage()    {}
-func (TaskCancelled) isHistoryMessage() {}
+func (TaskStarted) isHistoryMessage()       {}
+func (TaskCompleted) isHistoryMessage()     {}
+func (TaskFailed) isHistoryMessage()        {}
+func (TaskAttemptFailed) isHistoryMessage() {}
+func (TaskCancelled) isHistoryMessage()     {}
+
+func (TimestampRecorded) isHistoryMessage()    {}
+func (RandomRecorded) isHistoryMessage()       {}
+func (UUIDRecorded) isHistoryMessage()         {}
+func (SleepRecorded) isHistoryMessage()        {}
+func (ChildWorkflowStarted) isHistoryMessage() {}
+func (ParentEventSent) isHistoryMessage()      {}
 
 var historyMessageFactories = map[HistoryKind]func() HistoryMessage{
-	HistoryKindRunScheduled: func() HistoryMessage { return &RunScheduled{} },
-	HistoryKindRunStarted:   func() HistoryMessage { return &RunStarted{} },
-	HistoryKindRunCompleted: func() HistoryMessage { return &RunCompleted{} },
-	HistoryKindRunFailed:    func() HistoryMessage { return &RunFailed{} },
-	HistoryKindRunCancelled: func() HistoryMessage { return &RunCancelled{} },
-	HistoryKindRunTimeout:   func() HistoryMessage { return &RunTimeout{} },
+	HistoryKindRunScheduled:       func() HistoryMessage { return &RunScheduled{} },
+	HistoryKindRunStarted:         func() HistoryMessage { return &RunStarted{} },
+	HistoryKindRunCompleted:       func() HistoryMessage { return &RunCompleted{} },
+	HistoryKindRunFailed:          func() HistoryMessage { return &RunFailed{} },
+	HistoryKindRunCancelScheduled: func() HistoryMessage { return &RunCancelScheduled{} },
+	HistoryKindRunCancelReceived:  func() HistoryMessage { return &RunCancelReceived{} },
+	HistoryKindRunCancelled:       func() HistoryMessage { return &RunCancelled{} },
+	HistoryKindRunTimeout:         func() HistoryMessage { return &RunTimeout{} },
 
 	HistoryKindStepStarted:   func() HistoryMessage { return &StepStarted{} },
 	HistoryKindStepCompleted: func() HistoryMessage { return &StepCompleted{} },
@@ -192,10 +252,18 @@ var historyMessageFactories = map[HistoryKind]func() HistoryMessage{
 	HistoryKindWaitEventStarted: func() HistoryMessage { return &WaitEventStarted{} },
 	HistoryKindEventReceived:    func() HistoryMessage { return &EventReceived{} },
 
-	HistoryKindTaskStarted:   func() HistoryMessage { return &TaskStarted{} },
-	HistoryKindTaskCompleted: func() HistoryMessage { return &TaskCompleted{} },
-	HistoryKindTaskFailed:    func() HistoryMessage { return &TaskFailed{} },
-	HistoryKindTaskCancelled: func() HistoryMessage { return &TaskCancelled{} },
+	HistoryKindTaskStarted:       func() HistoryMessage { return &TaskStarted{} },
+	HistoryKindTaskCompleted:     func() HistoryMessage { return &TaskCompleted{} },
+	HistoryKindTaskFailed:        func() HistoryMessage { return &TaskFailed{} },
+	HistoryKindTaskAttemptFailed: func() HistoryMessage { return &TaskAttemptFailed{} },
+	HistoryKindTaskCancelled:     func() HistoryMessage { return &TaskCancelled{} },
+
+	HistoryKindTimestampRecorded: func() HistoryMessage { return &TimestampRecorded{} },
+	HistoryKindRandomRecorded:    func() HistoryMessage { return &RandomRecorded{} },
+	HistoryKindUUIDRecorded:      func() HistoryMessage { return &UUIDRecorded{} },
+	HistoryKindSleepRecorded:     func() HistoryMessage { return &SleepRecorded{} },
+	HistoryKindChildStarted:      func() HistoryMessage { return &ChildWorkflowStarted{} },
+	HistoryKindParentEventSent:   func() HistoryMessage { return &ParentEventSent{} },
 }
 
 type historyWire struct {

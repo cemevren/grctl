@@ -198,7 +198,12 @@ class Context:
         )
         await runtime.record(
             HistoryKind.parent_event_sent,
-            ParentEventSent(event_name=event_name, payload=payload),
+            ParentEventSent(
+                event_name=event_name,
+                payload=payload,
+                parent_wf_type=self._parent_run.wf_type,
+                parent_wf_id=self._parent_run.wf_id,
+            ),
             operation_id,
         )
 
@@ -244,7 +249,7 @@ class Context:
             await handle.start()
             await runtime.record(
                 HistoryKind.child_started,
-                ChildWorkflowStarted(run_id=run_id, wf_type=workflow_type, wf_id=workflow_id),
+                ChildWorkflowStarted(run_id=run_id, wf_type=workflow_type, wf_id=workflow_id, input=workflow_input),
                 operation_id,
             )
         return handle

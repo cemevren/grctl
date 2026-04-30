@@ -516,7 +516,7 @@ func (f *UpdateFactory) BuildStepTimeout(d ext.Directive, currentState ext.RunSt
 		return nil, ErrStaleDirective
 	}
 
-	he, err := NewHistoryBuilder().StepTimedout(d)
+	he, err := NewHistoryBuilder().StepTimedout(d, currentState)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create step timeout history event: %w", err)
 	}
