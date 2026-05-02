@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-REPO="cemevren/grctl"
+REPO="grctl/grctl"
 INSTALL_DIR="/usr/local/bin"
 
 # Detect OS and arch
