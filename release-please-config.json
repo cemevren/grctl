@@ -2,11 +2,6 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "bump-minor-pre-major": true,
   "packages": {
-    "sdk_python": {
-      "release-type": "python",
-      "package-name": "grctl-sdk-python",
-      "changelog-path": "CHANGELOG.md"
-    },
     "server": {
       "release-type": "simple",
       "package-name": "grctl/server",

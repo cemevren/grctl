@@ -1,1 +1,0 @@
-"""NATS connection and messaging."""
