@@ -1,16 +1,7 @@
 [tools]
 go = "1.25.6"
-uv = "latest"
 "go:github.com/golangci/golangci-lint/cmd/golangci-lint" = "latest"
 "go:github.com/air-verse/air" = "latest"
-
-[tasks.setup]
-description = "Install project dependencies"
-run = """
-uv python install 3.13
-uv sync --project sdk_python
-uv sync --project docs
-"""
 
 [tasks.docs]
 description = "Preview documentation"
