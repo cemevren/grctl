@@ -19,10 +19,9 @@ case "$OS" in
   *) echo "Unsupported OS: $OS" && exit 1 ;;
 esac
 
-# Get latest server release tag
-TAG=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases" \
+# Get latest release tag
+TAG=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
   | grep '"tag_name"' \
-  | grep '"grctl/server-' \
   | head -1 \
   | sed 's/.*"tag_name": "\(.*\)".*/\1/')
 

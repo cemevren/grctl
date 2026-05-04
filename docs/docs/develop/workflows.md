@@ -30,6 +30,9 @@ async def process(ctx: Context) -> Directive:
 
 The `workflow_type` string identifies this workflow across the system. Clients use it to start workflows, workers use it to route step assignments.
 
+!!! warning "Workflow type naming"
+    Workflow type names must not contain dots (`.`). Dots are NATS subject separators — a type like `"order.processor"` creates extra subject levels that break stream routing on the server. Use underscores or camel case instead: `"order_processor"` or `"OrderProcessor"`.
+
 ## Workflow ID and Runs
 
 Every workflow instance is identified by a `workflow_id`,  a stable, caller-supplied string like an order number or request ID. When a client starts a workflow, it provides this ID. The server rejects the request if a workflow with that ID is already running, which makes workflow starts idempotent.

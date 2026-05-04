@@ -2,7 +2,7 @@
 title: Quick Start
 ---
 
-You can quickly scaffold a new Ground Control project by running our starter script. This will download the project into a `grctl-starter` directory.
+You can quickly scaffold a new Ground Control project using the [grctl-starter](https://github.com/grctl/grctl-starter) repository. Run the starter script below to download it into a `grctl-starter` directory.
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/grctl/grctl-starter/main/init.sh | sh
@@ -49,7 +49,7 @@ If you prefer not to use `mise`, you can install the components manually:
 
 **1. Install the server and CLI:**
 ```bash
-curl -LsSf https://raw.githubusercontent.com/grctl/grctl/sdk/packaging/install.sh | sh
+curl -LsSf https://raw.githubusercontent.com/grctl/grctl/main/install.sh | sh
 ```
 
 **2. Start the `grctld` server** (in your current terminal or a background tmux session):
