@@ -92,7 +92,7 @@ func kindColor(kind ext.HistoryKind) lipgloss.Color {
 		return common.ColorCategoryStep
 	case strings.HasPrefix(string(kind), "task."):
 		return common.ColorCategoryTask
-	case strings.HasPrefix(string(kind), "wait_event."), strings.HasPrefix(string(kind), "event."):
+	case strings.HasPrefix(string(kind), "wait."), strings.HasPrefix(string(kind), "event."):
 		return common.ColorCategoryEvent
 	case strings.HasPrefix(string(kind), "child."), strings.HasPrefix(string(kind), "parent."):
 		return common.ColorCategoryChild

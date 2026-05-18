@@ -30,8 +30,7 @@ Every run is always in exactly one state. Non-terminal states mean execution con
 
 - `Start` — the run was just created
 - `Step` — a step handler is executing
-- `Sleep` / `SleepUntil` — waiting for a timer
-- `WaitEvent` — waiting for an external event
+- `Wait` — waiting for an external event, optionally with a timeout
 
 Terminal states end the run: `Complete`, `Fail`, `Cancel`, `Terminate`.
 
@@ -41,9 +40,9 @@ A transition moves the run from one state to the next as a single atomic unit: t
 
 Transitions are not initiated by the run itself. They are caused by directives delivered to the run's inbox. A directive describes what just finished and what should happen next. There are three sources:
 
-1. **A worker finishing a step.** The handler returns a `ctx.next` decision, and the worker sends a directive: "the step completed, transition to `Sleep` / `WaitEvent` / next `Step` / `Complete`."
-2. **A timer firing.** When a `Sleep` expires, the server itself produces a directive: "the sleep completed, transition to the next step."
-3. **An event arriving.** When the run is in `WaitEvent` and a matching event is delivered, the server produces a directive: "the wait completed, transition to a step that handles this event."
+1. **A worker finishing a step.** The handler returns a `ctx.next` decision, and the worker sends a directive: "the step completed, transition to `Wait` / next `Step` / `Complete`."
+2. **A timer firing.** When a `Wait` timeout expires, the server itself produces a directive: "the timeout fired, transition to the timeout step."
+3. **An event arriving.** When the run is in `Wait` and a matching event is delivered, the server produces a directive: "the wait completed, transition to a step that handles this event."
 
 From the run's point of view, all three look the same: a directive arrived, apply the transition.
 
@@ -140,7 +139,7 @@ Within a single step, tasks are regular async functions and can run concurrently
 
 **Event buffering**
 
-Events can arrive at any time, including while a step is running. When that happens, the event is saved to an inbox rather than processed immediately. The workflow only handles events when it transitions to `WaitEvent` state. At that point, the server pulls one waiting event from the inbox and dispatches it as a step. Once that step completes, the handler's `ctx.next` determines what happens next; transition to another step, wait for more events, or complete.
+Events can arrive at any time, including while a step is running. When that happens, the event is saved to an inbox rather than processed immediately. The workflow only handles events when it transitions to `Wait` state. At that point, the server pulls one waiting event from the inbox and dispatches it as a step. Once that step completes, the handler's `ctx.next` determines what happens next; transition to another step, wait for more events, or complete.
 
 **State consistency**
 

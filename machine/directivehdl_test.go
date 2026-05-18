@@ -84,7 +84,7 @@ func (s *DirectiveHandlerTestSuite) seedInboxEvent() (ext.Directive, uint64) {
 	return event, seqID
 }
 
-// Incoming event while the run is in WaitEvent state
+// Incoming event while the run is in Wait state
 // with an event already in the inbox — dispatches the inbox event
 // and transitions the run to Step with LastEventSeqID pointing at the dispatched event.
 func (s *DirectiveHandlerTestSuite) TestEventWhileWaitingDispatches() {
@@ -93,7 +93,7 @@ func (s *DirectiveHandlerTestSuite) TestEventWhileWaitingDispatches() {
 	err := s.store.ApplyStateUpdates(ctx, []store.StateUpdate{
 		store.RunStateUpdate{
 			State: ext.RunState{
-				Kind:  ext.RunStateWaitEvent,
+				Kind:  ext.RunStateWait,
 				WFID:  s.wfID,
 				RunID: s.runID,
 			},
@@ -117,7 +117,7 @@ func (s *DirectiveHandlerTestSuite) TestEventWhileWaitingDispatches() {
 	s.Equal(eventASeqID, snapshot.RunState.LastEventSeqID)
 }
 
-// Incoming event while the run is in WaitEvent state with an empty inbox
+// Incoming event while the run is in Wait state with an empty inbox
 // is first stored, then dispatched from the inbox with its assigned seqID.
 func (s *DirectiveHandlerTestSuite) TestFirstEventWhileWaitingDispatches() {
 	ctx := context.Background()
@@ -125,7 +125,7 @@ func (s *DirectiveHandlerTestSuite) TestFirstEventWhileWaitingDispatches() {
 	err := s.store.ApplyStateUpdates(ctx, []store.StateUpdate{
 		store.RunStateUpdate{
 			State: ext.RunState{
-				Kind:  ext.RunStateWaitEvent,
+				Kind:  ext.RunStateWait,
 				WFID:  s.wfID,
 				RunID: s.runID,
 			},
@@ -176,9 +176,9 @@ func (s *DirectiveHandlerTestSuite) TestEventWhileStepStoredInInbox() {
 	s.Equal(ext.DirectiveKindEvent, storedEvent.Kind)
 }
 
-// WaitEvent directive arriving while an event is already in the inbox
+// Wait directive arriving while an event is already in the inbox
 // immediately dispatches the inbox event and transitions the run to Step state instead of waiting.
-func (s *DirectiveHandlerTestSuite) TestWaitEventWithInboxEventDispatches() {
+func (s *DirectiveHandlerTestSuite) TestWaitWithInboxEventDispatches() {
 	ctx := context.Background()
 
 	err := s.store.ApplyStateUpdates(ctx, []store.StateUpdate{
@@ -192,18 +192,18 @@ func (s *DirectiveHandlerTestSuite) TestWaitEventWithInboxEventDispatches() {
 	})
 	s.Require().NoError(err)
 
-	// Seed an event in the inbox before the WaitEvent directive arrives
+	// Seed an event in the inbox before the Wait directive arrives
 	_, eventSeqID := s.seedInboxEvent()
 
 	waitEventD := ext.Directive{
 		ID:   ext.NewDirectiveID(),
-		Kind: ext.DirectiveKindWaitEvent,
+		Kind: ext.DirectiveKindWait,
 		RunInfo: ext.RunInfo{
 			WFID:   s.wfID,
 			ID:     s.runID,
 			WFType: s.wfType,
 		},
-		Msg: &ext.WaitEvent{},
+		Msg: &ext.Wait{},
 	}
 	result := s.handler.Handle(ctx, waitEventD, 1)
 
@@ -281,7 +281,7 @@ func (s *DirectiveHandlerTestSuite) TestDuplicateEventIsIdempotent() {
 	err := s.store.ApplyStateUpdates(ctx, []store.StateUpdate{
 		store.RunStateUpdate{
 			State: ext.RunState{
-				Kind:  ext.RunStateWaitEvent,
+				Kind:  ext.RunStateWait,
 				WFID:  s.wfID,
 				RunID: s.runID,
 			},

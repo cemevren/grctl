@@ -63,13 +63,8 @@ func (h *TimerMsgHandler) handleDirectiveTimer(ctx context.Context, timer ext.Ti
 	switch timer.Kind {
 	case ext.TimerKindStepTimeout:
 		return h.handleStepTimeout(ctx, timer)
-	case ext.TimerKindWaitEventTimeout:
-		return h.handleWaitEventTimeout(ctx, timer)
-	case ext.TimerKindSleep:
-		return h.handleSleepTimeout(timer)
-	case ext.TimerKindSleepUntil:
-		// SleepUntil is just a convenience for sleep timer with a datetime instead of a duration
-		return h.handleSleepTimeout(timer)
+	case ext.TimerKindWaitTimeout:
+		return h.handleWaitTimeout(ctx, timer)
 	default:
 		slog.Error("Unknown timer kind", "kind", timer.Kind, "wfID", timer.WFID)
 		return intr.Processed()
@@ -142,16 +137,16 @@ func (h *TimerMsgHandler) applyFailure(ctx context.Context, d ext.Directive, cau
 	return intr.Processed()
 }
 
-func (h *TimerMsgHandler) handleWaitEventTimeout(ctx context.Context, timer ext.Timer) intr.HandleResult {
-	directive, err := h.buildWaitEventTimeoutDirective(timer)
+func (h *TimerMsgHandler) handleWaitTimeout(ctx context.Context, timer ext.Timer) intr.HandleResult {
+	directive, err := h.buildWaitTimeoutDirective(timer)
 	if err != nil {
-		slog.Error("Failed to build wait event timeout directive", "error", err, "wfID", timer.WFID)
-		cause := fmt.Sprintf("failed to build wait event timeout directive: %v", err)
+		slog.Error("Failed to build wait timeout directive", "error", err, "wfID", timer.WFID)
+		cause := fmt.Sprintf("failed to build wait timeout directive: %v", err)
 		return h.applyFailure(ctx, timer.Directive, cause)
 	}
 
 	if err := h.publisher.PublishDirective(ctx, directive); err != nil {
-		slog.Error("Failed to enqueue wait event timeout directive",
+		slog.Error("Failed to enqueue wait timeout directive",
 			"error", err,
 			"wfID", timer.WFID,
 			"directiveKind", directive.Kind,
@@ -159,29 +154,25 @@ func (h *TimerMsgHandler) handleWaitEventTimeout(ctx context.Context, timer ext.
 		return intr.Retryable(NackDelay)
 	}
 
-	slog.Debug("Enqueued wait event timeout directive", "wfID", timer.WFID)
+	slog.Debug("Enqueued wait timeout directive", "wfID", timer.WFID)
 	return intr.Processed()
 }
 
-func (h *TimerMsgHandler) buildWaitEventTimeoutDirective(timer ext.Timer) (ext.Directive, error) {
-	msg, ok := timer.Directive.Msg.(*ext.WaitEvent)
+func (h *TimerMsgHandler) buildWaitTimeoutDirective(timer ext.Timer) (ext.Directive, error) {
+	msg, ok := timer.Directive.Msg.(*ext.Wait)
 	if !ok {
-		return ext.Directive{}, fmt.Errorf("expected WaitEvent but got %T", timer.Directive.Msg)
+		return ext.Directive{}, fmt.Errorf("expected Wait but got %T", timer.Directive.Msg)
 	}
 	if msg.TimeoutStepName == "" {
-		return ext.Directive{}, fmt.Errorf("wait event timeout timer fired with no timeout_step_name")
+		return ext.Directive{}, fmt.Errorf("wait timeout timer fired with no timeout_step_name")
 	}
 	return ext.Directive{
 		ID:      ext.NewDirectiveID(),
-		Kind:    ext.DirectiveKindWaitEventTimeout,
+		Kind:    ext.DirectiveKindWaitTimeout,
 		RunInfo: timer.Directive.RunInfo,
-		Msg: &ext.WaitEventTimeout{
+		Msg: &ext.WaitTimeout{
 			TimeoutStepName:     msg.TimeoutStepName,
 			OriginalDirectiveID: timer.Directive.ID,
 		},
 	}, nil
-}
-
-func (h *TimerMsgHandler) handleSleepTimeout(_ ext.Timer) intr.HandleResult {
-	return intr.HandleResult{}
 }

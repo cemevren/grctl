@@ -39,14 +39,12 @@ const DirectiveKindFail DirectiveKind = "fail"
 const DirectiveKindComplete DirectiveKind = "complete"
 
 // Server -> Worker -> Server
-const DirectiveKindWaitEvent DirectiveKind = "wait_event"
-const DirectiveKindSleep DirectiveKind = "sleep"
-const DirectiveKindSleepUntil DirectiveKind = "sleep_until"
+const DirectiveKindWait DirectiveKind = "wait"
 const DirectiveKindStep DirectiveKind = "step"
 
 // Timeout directives
-const DirectiveKindStepTimeout        DirectiveKind = "step_timeout"
-const DirectiveKindWaitEventTimeout   DirectiveKind = "wait_event_timeout"
+const DirectiveKindStepTimeout DirectiveKind = "step_timeout"
+const DirectiveKindWaitTimeout DirectiveKind = "wait_timeout"
 
 type DispatchableMessage interface {
 	StepName() string
@@ -89,24 +87,14 @@ type StepTimeout struct {
 	OriginalDirectiveID DirectiveID `json:"original_directive_id,omitempty" msgpack:"original_directive_id,omitempty"`
 }
 
-type WaitEventTimeout struct {
-	TimeoutStepName     string      `json:"timeout_step_name" msgpack:"timeout_step_name"`
-	OriginalDirectiveID DirectiveID `json:"original_directive_id" msgpack:"original_directive_id"`
-}
-
-type WaitEvent struct {
+type Wait struct {
 	Timeout         uint32 `json:"timeout_ms" msgpack:"timeout_ms"`
 	TimeoutStepName string `json:"timeout_step_name" msgpack:"timeout_step_name"`
 }
 
-type Sleep struct {
-	Duration     uint32 `json:"duration" msgpack:"duration_ms"`
-	NextStepName string `json:"next_step_name" msgpack:"next_step_name"`
-}
-
-type SleepUntil struct {
-	Until        time.Time `json:"until" msgpack:"until"`
-	NextStepName string    `json:"next_step_name" msgpack:"next_step_name"`
+type WaitTimeout struct {
+	TimeoutStepName     string      `json:"timeout_step_name" msgpack:"timeout_step_name"`
+	OriginalDirectiveID DirectiveID `json:"original_directive_id" msgpack:"original_directive_id"`
 }
 
 type Cancel struct {
@@ -241,12 +229,10 @@ func (Event) isDirectiveMessage()       {}
 func (Complete) isDirectiveMessage()    {}
 func (Fail) isDirectiveMessage()        {}
 func (Step) isDirectiveMessage()        {}
-func (WaitEvent) isDirectiveMessage()   {}
-func (Sleep) isDirectiveMessage()       {}
-func (SleepUntil) isDirectiveMessage()  {}
-func (StepResult) isDirectiveMessage()        {}
-func (StepTimeout) isDirectiveMessage()       {}
-func (WaitEventTimeout) isDirectiveMessage()  {}
+func (Wait) isDirectiveMessage()        {}
+func (WaitTimeout) isDirectiveMessage() {}
+func (StepResult) isDirectiveMessage()  {}
+func (StepTimeout) isDirectiveMessage() {}
 
 type Directive struct {
 	ID        DirectiveID      `json:"id" msgpack:"id"`
@@ -265,12 +251,10 @@ var DirectiveFactories = map[DirectiveKind]func() DirectiveMessage{
 	DirectiveKindComplete:    func() DirectiveMessage { return &Complete{} },
 	DirectiveKindFail:        func() DirectiveMessage { return &Fail{} },
 	DirectiveKindStep:        func() DirectiveMessage { return &Step{} },
-	DirectiveKindWaitEvent:   func() DirectiveMessage { return &WaitEvent{} },
-	DirectiveKindSleep:       func() DirectiveMessage { return &Sleep{} },
-	DirectiveKindSleepUntil:  func() DirectiveMessage { return &SleepUntil{} },
+	DirectiveKindWait:        func() DirectiveMessage { return &Wait{} },
 	DirectiveKindStepResult:  func() DirectiveMessage { return &StepResult{} },
-	DirectiveKindStepTimeout:      func() DirectiveMessage { return &StepTimeout{} },
-	DirectiveKindWaitEventTimeout: func() DirectiveMessage { return &WaitEventTimeout{} },
+	DirectiveKindStepTimeout: func() DirectiveMessage { return &StepTimeout{} },
+	DirectiveKindWaitTimeout: func() DirectiveMessage { return &WaitTimeout{} },
 }
 
 // directiveWire is the internal wire format with short field names for compact encoding

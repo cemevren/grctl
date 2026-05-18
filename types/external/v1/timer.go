@@ -21,10 +21,8 @@ func DeriveTimerID(directiveID DirectiveID, kind TimerKind) TimerID {
 }
 
 const (
-	TimerKindSleep            TimerKind = "sleep"
-	TimerKindSleepUntil       TimerKind = "sleep_until"
-	TimerKindWaitEventTimeout TimerKind = "wait_event_timeout"
-	TimerKindStepTimeout      TimerKind = "step_timeout"
+	TimerKindWaitTimeout TimerKind = "wait_timeout"
+	TimerKindStepTimeout TimerKind = "step_timeout"
 )
 
 // Timer represents a scheduled action to be executed at a specific time.

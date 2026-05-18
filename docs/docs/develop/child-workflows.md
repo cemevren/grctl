@@ -2,7 +2,7 @@
 title: Child Workflows
 ---
 
-A workflow can launch other workflows as children. The parent and child run independently. Each has its own state and step execution. The parent typically waits for a signal back from the child by returning `ctx.next.wait_for_event()` and listening for the child to call `ctx.send_to_parent()`.
+A workflow can launch other workflows as children. The parent and child run independently. Each has its own state and step execution. The parent typically waits for a signal back from the child by returning `ctx.next.wait()` and listening for the child to call `ctx.send_to_parent()`.
 
 ## Starting a Child Workflow
 
@@ -23,7 +23,7 @@ async def send_to_payment(ctx: Context) -> Directive:
     )
 
     ctx.store.put("payment_run_id", payment_handle.run_info.id)
-    return ctx.next.wait_for_event()
+    return ctx.next.wait()
 ```
 
 `ctx.start()` returns a `WorkflowHandle`. The child starts immediately and runs in parallel with the parent.
@@ -49,7 +49,7 @@ async def payment_record(ctx: Context) -> Directive:
     return ctx.next.complete({"status": status})
 ```
 
-The event is delivered to the parent's inbox. If the parent is in `WaitEvent` state, the event is dispatched immediately. If not, it waits in the inbox until the parent transitions to `WaitEvent`.
+The event is delivered to the parent's inbox. If the parent is in `Wait` state, the event is dispatched immediately. If not, it waits in the inbox until the parent transitions to `Wait`.
 
 ## Handling the Child's Response
 
@@ -99,7 +99,7 @@ async def payment_done(ctx: Context) -> Directive:
 async def order_start(ctx: Context, order_id: str, amount: float) -> Directive:
     ctx.store.put("order_id", order_id)
     ctx.store.put("amount", amount)
-    return ctx.next.wait_for_event()
+    return ctx.next.wait()
 
 @order_wf.event()
 async def start_payment(ctx: Context) -> Directive:
@@ -111,7 +111,7 @@ async def start_payment(ctx: Context) -> Directive:
         workflow_id=f"payment-{order_id}",
         workflow_input={"amount": amount},
     )
-    return ctx.next.wait_for_event()
+    return ctx.next.wait()
 
 @order_wf.event(name="payment_completed")
 async def on_payment_done(ctx: Context, txn_id: str) -> Directive:

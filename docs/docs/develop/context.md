@@ -59,12 +59,12 @@ Values can be any msgpack-serializable type: strings, numbers, lists, dicts, boo
 
 ```python
 return ctx.next.step(next_step_fn)           # run another step
-return ctx.next.wait_for_event()             # pause, wait for an event
+return ctx.next.wait()                       # pause, wait for an event
 return ctx.next.complete(result)             # finish the workflow
 return ctx.next.fail(error)                  # fail the workflow
 ```
 
-See [Workflows](workflows.md) for the full transition table and [Events](events.md) for `wait_for_event` details.
+See [Workflows](workflows.md) for the full transition table and [Events](events.md) for `wait` details.
 
 ## Deterministic Functions
 
@@ -124,7 +124,7 @@ async def wait_and_retry(ctx: Context) -> Directive:
     return ctx.next.step(retry_payment)
 ```
 
-`ctx.sleep` is appropriate for short delays inside a step. For pausing a workflow until an external event occurs, use `ctx.next.wait_for_event()` instead.
+`ctx.sleep` is appropriate for short delays inside a step. For pausing a workflow until an external event occurs, use `ctx.next.wait()` instead.
 
 ## Logger
 

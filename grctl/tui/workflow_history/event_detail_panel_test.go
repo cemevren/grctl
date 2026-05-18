@@ -108,7 +108,7 @@ func TestBuildDetailContent_AllEventTypes(t *testing.T) {
 		testEvent(ext.HistoryKindStepFailed, &ext.StepFailed{StepName: "s", Error: ext.ErrorDetails{Type: "E", Message: "m"}, DurationMS: 10}),
 		testEvent(ext.HistoryKindStepCancelled, &ext.StepCancelled{StepName: "s"}),
 		testEvent(ext.HistoryKindStepTimeout, &ext.StepTimedout{StepName: "s", DurationMS: 10}),
-		testEvent(ext.HistoryKindWaitEventStarted, &ext.WaitEventStarted{}),
+		testEvent(ext.HistoryKindWaitStarted, &ext.WaitStarted{}),
 		testEvent(ext.HistoryKindEventReceived, &ext.EventReceived{EventName: "ev", Payload: "data"}),
 		testEvent(ext.HistoryKindTaskStarted, &ext.TaskStarted{TaskID: "t1", TaskName: "tn", Args: "in", StepName: "s"}),
 		testEvent(ext.HistoryKindTaskCompleted, &ext.TaskCompleted{TaskID: "t1", TaskName: "tn", Output: "out", StepName: "s", DurationMS: 10}),

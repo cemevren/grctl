@@ -7,15 +7,13 @@ import (
 type RunStateKind string
 
 const (
-	RunStateIdle      RunStateKind = "idle"
-	RunStateStart     RunStateKind = "start"
-	RunStateStep      RunStateKind = "step"
-	RunStateSleep     RunStateKind = "sleep"
-	RunStateSleepUntl RunStateKind = "sleep_until"
-	RunStateWaitEvent RunStateKind = "wait_event"
-	RunStateComplete  RunStateKind = "complete"
-	RunStateFail      RunStateKind = "fail"
-	RunStateCancel    RunStateKind = "cancel"
+	RunStateIdle     RunStateKind = "idle"
+	RunStateStart    RunStateKind = "start"
+	RunStateStep     RunStateKind = "step"
+	RunStateWait     RunStateKind = "wait"
+	RunStateComplete RunStateKind = "complete"
+	RunStateFail     RunStateKind = "fail"
+	RunStateCancel   RunStateKind = "cancel"
 )
 
 type RunState struct {
@@ -25,8 +23,8 @@ type RunState struct {
 	EnteredAt      time.Time    `json:"entered_at" msgpack:"entered_at"`
 	StartedAt      *time.Time   `json:"started_at,omitempty" msgpack:"started_at,omitempty"`
 	LastEventSeqID uint64       `json:"last_event_seq_id" msgpack:"last_event_seq_id"`
-	// ActiveDirectiveID is the ID of the directive that caused the current RunStateStep or RunStateWaitEvent.
-	// Non-empty when Kind == RunStateStep, or Kind == RunStateWaitEvent with a timeout configured.
+	// ActiveDirectiveID is the ID of the directive that caused the current RunStateStep or RunStateWait.
+	// Non-empty when Kind == RunStateStep, or Kind == RunStateWait with a timeout configured.
 	// Used to detect stale timeout directives.
 	ActiveDirectiveID DirectiveID `json:"active_directive_id,omitempty" msgpack:"active_directive_id,omitempty"`
 

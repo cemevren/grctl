@@ -60,8 +60,8 @@ func (s *TimerStreamTestSuite) makeTimer(kind ext.TimerKind) ext.Timer {
 		ExpiresAt: time.Now().UTC().Add(time.Minute),
 		Directive: ext.Directive{
 			ID:   ext.NewDirectiveID(),
-			Kind: ext.DirectiveKindSleep,
-			Msg:  &ext.Sleep{Duration: 1000, NextStepName: "next"},
+			Kind: ext.DirectiveKindWait,
+			Msg:  &ext.Wait{},
 		},
 	}
 }
@@ -99,7 +99,7 @@ func (s *TimerStreamTestSuite) TestProcessed_HandlerCalledOnce() {
 		return intr.Processed()
 	}
 
-	s.publishFiredTimer(s.makeTimer(ext.TimerKindSleep))
+	s.publishFiredTimer(s.makeTimer(ext.TimerKindWaitTimeout))
 	ts := s.startStream(handler)
 	defer ts.Stop()
 
@@ -120,7 +120,7 @@ func (s *TimerStreamTestSuite) TestRetryable_MessageRedelivered() {
 		return intr.Processed()
 	}
 
-	s.publishFiredTimer(s.makeTimer(ext.TimerKindSleep))
+	s.publishFiredTimer(s.makeTimer(ext.TimerKindWaitTimeout))
 	ts := s.startStream(handler)
 	defer ts.Stop()
 
@@ -179,7 +179,7 @@ func (s *TimerStreamTestSuite) TestGetTimer_ReturnsEmpty_WhenNotSet() {
 	s.Require().NoError(err)
 
 	timerID := ext.NewTimerID()
-	got, err := ts.GetTimer(context.Background(), s.wfID, ext.TimerKindSleep, timerID)
+	got, err := ts.GetTimer(context.Background(), s.wfID, ext.TimerKindWaitTimeout, timerID)
 	s.Require().NoError(err)
 	s.Equal(ext.TimerID(""), got.ID)
 }
@@ -189,13 +189,13 @@ func (s *TimerStreamTestSuite) TestAddTimer_TimerIsRetrievable() {
 	ts, err := NewTimerStream(context.Background(), s.js, s.stream)
 	s.Require().NoError(err)
 
-	timer := s.makeTimer(ext.TimerKindSleep)
+	timer := s.makeTimer(ext.TimerKindWaitTimeout)
 	expiresAt := time.Now().UTC().Add(time.Minute)
 
 	err = ts.AddTimer(context.Background(), timer, expiresAt)
 	s.Require().NoError(err)
 
-	got, err := ts.GetTimer(context.Background(), s.wfID, ext.TimerKindSleep, timer.ID)
+	got, err := ts.GetTimer(context.Background(), s.wfID, ext.TimerKindWaitTimeout, timer.ID)
 	s.Require().NoError(err)
 	s.Equal(timer.ID, got.ID)
 	s.Equal(timer.Kind, got.Kind)
@@ -206,20 +206,20 @@ func (s *TimerStreamTestSuite) TestCancelTimer_RemovesStoredTimer() {
 	ts, err := NewTimerStream(context.Background(), s.js, s.stream)
 	s.Require().NoError(err)
 
-	timer := s.makeTimer(ext.TimerKindWaitEventTimeout)
+	timer := s.makeTimer(ext.TimerKindWaitTimeout)
 	expiresAt := time.Now().UTC().Add(time.Minute)
 
 	err = ts.AddTimer(context.Background(), timer, expiresAt)
 	s.Require().NoError(err)
 
-	got, err := ts.GetTimer(context.Background(), s.wfID, ext.TimerKindWaitEventTimeout, timer.ID)
+	got, err := ts.GetTimer(context.Background(), s.wfID, ext.TimerKindWaitTimeout, timer.ID)
 	s.Require().NoError(err)
 	s.NotEmpty(got.ID)
 
-	err = ts.CancelTimer(context.Background(), s.wfID, ext.TimerKindWaitEventTimeout, timer.ID)
+	err = ts.CancelTimer(context.Background(), s.wfID, ext.TimerKindWaitTimeout, timer.ID)
 	s.Require().NoError(err)
 
-	got, err = ts.GetTimer(context.Background(), s.wfID, ext.TimerKindWaitEventTimeout, timer.ID)
+	got, err = ts.GetTimer(context.Background(), s.wfID, ext.TimerKindWaitTimeout, timer.ID)
 	s.Require().NoError(err)
 	s.Equal(ext.TimerID(""), got.ID)
 }
@@ -230,6 +230,6 @@ func (s *TimerStreamTestSuite) TestCancelTimer_Idempotent() {
 	s.Require().NoError(err)
 
 	timerID := ext.NewTimerID()
-	err = ts.CancelTimer(context.Background(), s.wfID, ext.TimerKindSleep, timerID)
+	err = ts.CancelTimer(context.Background(), s.wfID, ext.TimerKindWaitTimeout, timerID)
 	s.Require().NoError(err)
 }

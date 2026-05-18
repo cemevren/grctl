@@ -106,7 +106,7 @@ func makeStepTimeoutDirective(stepName string, originalDirectiveID ext.Directive
 // --- StartStep ---
 
 func (s *UpdateBldSuite) TestStartStep_EventDirectiveSetsLastEventSeqID() {
-	currentState := ext.RunState{Kind: ext.RunStateWaitEvent}
+	currentState := ext.RunState{Kind: ext.RunStateWait}
 	d := makeEventDirective(ptr(uint64(5)))
 
 	updates, err := s.f.StartStep(d, currentState)
@@ -133,7 +133,7 @@ func (s *UpdateBldSuite) TestStartStep_NonEventDirectivePreservesLastEventSeqID(
 }
 
 func (s *UpdateBldSuite) TestStartStep_EventDirectiveWithNilSeqIDLeavesZero() {
-	currentState := ext.RunState{Kind: ext.RunStateWaitEvent}
+	currentState := ext.RunState{Kind: ext.RunStateWait}
 	d := makeEventDirective(nil)
 
 	updates, err := s.f.StartStep(d, currentState)
@@ -204,7 +204,7 @@ func (s *UpdateBldSuite) TestBuildStepTimeout_DropsWhenNotInStepState() {
 	stepDirectiveID := ext.NewDirectiveID()
 	d := makeStepTimeoutDirective("my-step", stepDirectiveID)
 	currentState := ext.RunState{
-		Kind:              ext.RunStateWaitEvent,
+		Kind:              ext.RunStateWait,
 		ActiveDirectiveID: stepDirectiveID,
 	}
 
@@ -524,4 +524,149 @@ func (s *UpdateBldSuite) TestCancelRun_EmitsPurgeTask() {
 	var payload ext.PurgeRunResiduePayload
 	require.NoError(s.T(), msgpack.Unmarshal(btu.Task.Payload, &payload))
 	require.Equal(s.T(), d.RunInfo.WFID, payload.WFID)
+}
+
+// --- helpers for Wait tests ---
+
+func makeWaitDirective(timeout uint32, timeoutStepName string) ext.Directive {
+	return ext.Directive{
+		ID:   ext.NewDirectiveID(),
+		Kind: ext.DirectiveKindWait,
+		RunInfo: ext.RunInfo{
+			WFID:   ext.NewWFID(),
+			WFType: ext.NewWFType("test"),
+			ID:     ext.NewRunID(),
+		},
+		Msg: &ext.Wait{
+			Timeout:         timeout,
+			TimeoutStepName: timeoutStepName,
+		},
+	}
+}
+
+func makeWaitTimeoutDirective(originalDirectiveID ext.DirectiveID, timeoutStepName string) ext.Directive {
+	return ext.Directive{
+		ID:   ext.NewDirectiveID(),
+		Kind: ext.DirectiveKindWaitTimeout,
+		RunInfo: ext.RunInfo{
+			WFID:   ext.NewWFID(),
+			WFType: ext.NewWFType("test"),
+			ID:     ext.NewRunID(),
+		},
+		Msg: &ext.WaitTimeout{
+			OriginalDirectiveID: originalDirectiveID,
+			TimeoutStepName:     timeoutStepName,
+		},
+	}
+}
+
+func findTimerUpdate(updates []store.StateUpdate) (store.TimerUpdate, bool) {
+	for _, u := range updates {
+		if tu, ok := u.(store.TimerUpdate); ok {
+			return tu, true
+		}
+	}
+	return store.TimerUpdate{}, false
+}
+
+// --- StartWait ---
+
+func (s *UpdateBldSuite) TestWaitTransitionsRunToWaitState() {
+	d := makeWaitDirective(0, "")
+	currentState := ext.RunState{Kind: ext.RunStateStep, SeqID: 3}
+
+	updates, err := s.f.StartWait(d, currentState)
+	require.NoError(s.T(), err)
+
+	rsu, found := findRunStateUpdate(updates)
+	require.True(s.T(), found, "RunStateUpdate not found")
+	require.Equal(s.T(), ext.RunStateWait, rsu.State.Kind)
+	require.Equal(s.T(), uint64(3), rsu.ExpectedSeq)
+
+	histUpdates := findHistoryUpdates(updates)
+	require.Len(s.T(), histUpdates, 1)
+	require.Equal(s.T(), ext.HistoryKindWaitStarted, histUpdates[0].History.Kind)
+}
+
+func (s *UpdateBldSuite) TestWaitNoTimeoutCreatesNoTimer() {
+	d := makeWaitDirective(0, "")
+	currentState := ext.RunState{Kind: ext.RunStateStep}
+
+	updates, err := s.f.StartWait(d, currentState)
+	require.NoError(s.T(), err)
+
+	_, found := findTimerUpdate(updates)
+	require.False(s.T(), found, "no TimerUpdate expected when Wait has no timeout")
+
+	rsu, _ := findRunStateUpdate(updates)
+	require.Empty(s.T(), rsu.State.ActiveDirectiveID, "ActiveDirectiveID must be empty when no timeout")
+}
+
+func (s *UpdateBldSuite) TestWaitWithTimeoutCreatesTimer() {
+	d := makeWaitDirective(5000, "on_timeout")
+	currentState := ext.RunState{Kind: ext.RunStateStep}
+
+	updates, err := s.f.StartWait(d, currentState)
+	require.NoError(s.T(), err)
+
+	tu, found := findTimerUpdate(updates)
+	require.True(s.T(), found, "TimerUpdate expected when Wait has timeout")
+	require.Equal(s.T(), ext.TimerKindWaitTimeout, tu.Timer.Kind)
+	require.Equal(s.T(), "on_timeout", tu.Timer.StepName)
+	require.False(s.T(), tu.Timer.ExpiresAt.IsZero())
+
+	rsu, _ := findRunStateUpdate(updates)
+	require.Equal(s.T(), d.ID, rsu.State.ActiveDirectiveID, "ActiveDirectiveID must be set when timeout configured")
+}
+
+// --- BuildWaitTimeout ---
+
+func (s *UpdateBldSuite) TestWaitTimeoutDispatchesTimeoutStep() {
+	waitDirectiveID := ext.NewDirectiveID()
+	d := makeWaitTimeoutDirective(waitDirectiveID, "on_timeout")
+	currentState := ext.RunState{
+		Kind:              ext.RunStateWait,
+		ActiveDirectiveID: waitDirectiveID,
+		SeqID:             5,
+	}
+
+	updates, err := s.f.BuildWaitTimeout(d, currentState)
+	require.NoError(s.T(), err)
+
+	histUpdates := findHistoryUpdates(updates)
+	require.NotEmpty(s.T(), histUpdates)
+	var waitTimedOut *store.HistoryUpdate
+	for i := range histUpdates {
+		if histUpdates[i].History.Kind == ext.HistoryKindWaitTimedOut {
+			waitTimedOut = &histUpdates[i]
+		}
+	}
+	require.NotNil(s.T(), waitTimedOut, "wait.timed_out history event not found")
+
+	rsu, found := findRunStateUpdate(updates)
+	require.True(s.T(), found, "RunStateUpdate not found")
+	require.Equal(s.T(), ext.RunStateStep, rsu.State.Kind)
+}
+
+func (s *UpdateBldSuite) TestWaitTimeoutStaleIsDropped() {
+	d := makeWaitTimeoutDirective(ext.NewDirectiveID(), "on_timeout")
+	currentState := ext.RunState{
+		Kind:              ext.RunStateWait,
+		ActiveDirectiveID: ext.NewDirectiveID(), // different ID
+	}
+
+	_, err := s.f.BuildWaitTimeout(d, currentState)
+	require.ErrorIs(s.T(), err, ErrStaleDirective)
+}
+
+func (s *UpdateBldSuite) TestWaitTimeoutDroppedWhenRunNotWaiting() {
+	waitDirectiveID := ext.NewDirectiveID()
+	d := makeWaitTimeoutDirective(waitDirectiveID, "on_timeout")
+	currentState := ext.RunState{
+		Kind:              ext.RunStateStep,
+		ActiveDirectiveID: waitDirectiveID,
+	}
+
+	_, err := s.f.BuildWaitTimeout(d, currentState)
+	require.ErrorIs(s.T(), err, ErrStaleDirective)
 }
