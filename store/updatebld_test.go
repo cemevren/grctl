@@ -206,7 +206,7 @@ func (s *UpdateBldSuite) TestTimerUpdate_ScheduleHeaderContainsAtAt() {
 	u := TimerUpdate{
 		Timer: ext.Timer{
 			WFID:      ext.NewWFID(),
-			Kind:      ext.TimerKindSleep,
+			Kind:      ext.TimerKindWaitTimeout,
 			ExpiresAt: time.Now().UTC().Add(time.Minute),
 		},
 	}
@@ -222,7 +222,7 @@ func (s *UpdateBldSuite) TestTimerUpdate_ScheduleTargetIsSet() {
 	u := TimerUpdate{
 		Timer: ext.Timer{
 			WFID:      ext.NewWFID(),
-			Kind:      ext.TimerKindSleep,
+			Kind:      ext.TimerKindWaitTimeout,
 			ExpiresAt: time.Now().UTC().Add(time.Minute),
 		},
 	}

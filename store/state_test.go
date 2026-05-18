@@ -78,14 +78,14 @@ func (s *GetStateSnapshotTestSuite) makeCancelDirective() ext.Directive {
 }
 
 // TestWaitEventWithEvent verifies that concurrent RunState and Event fetches
-// both populate the snapshot when the run is in WaitEvent state.
+// both populate the snapshot when the run is in Wait state.
 func (s *GetStateSnapshotTestSuite) TestWaitEventWithEvent() {
 	ctx := context.Background()
 
 	err := s.store.ApplyStateUpdates(ctx, []store.StateUpdate{
 		store.RunStateUpdate{
 			State: ext.RunState{
-				Kind:  ext.RunStateWaitEvent,
+				Kind:  ext.RunStateWait,
 				WFID:  s.wfID,
 				RunID: s.runID,
 			},
@@ -101,7 +101,7 @@ func (s *GetStateSnapshotTestSuite) TestWaitEventWithEvent() {
 	snapshot, err := s.store.GetStateSnapshot(ctx, s.wfID, s.runID)
 	s.Require().NoError(err)
 
-	s.Equal(ext.RunStateWaitEvent, snapshot.RunState.Kind)
+	s.Equal(ext.RunStateWait, snapshot.RunState.Kind)
 	s.Equal(ext.DirectiveKindEvent, snapshot.Event.Kind)
 	s.Empty(snapshot.Cancel.Kind)
 }
@@ -132,7 +132,7 @@ func (s *GetStateSnapshotTestSuite) TestEventCursorSkipsSeen() {
 	err = s.store.ApplyStateUpdates(ctx, []store.StateUpdate{
 		store.RunStateUpdate{
 			State: ext.RunState{
-				Kind:           ext.RunStateWaitEvent,
+				Kind:           ext.RunStateWait,
 				WFID:           s.wfID,
 				RunID:          s.runID,
 				LastEventSeqID: event1SeqID,
@@ -159,7 +159,7 @@ func (s *GetStateSnapshotTestSuite) TestCancelSuppressesEvent() {
 	err := s.store.ApplyStateUpdates(ctx, []store.StateUpdate{
 		store.RunStateUpdate{
 			State: ext.RunState{
-				Kind:  ext.RunStateWaitEvent,
+				Kind:  ext.RunStateWait,
 				WFID:  s.wfID,
 				RunID: s.runID,
 			},

@@ -239,36 +239,34 @@ func (p *HistoryBuilder) StepTimedout(d ext.Directive, currentState ext.RunState
 	return e, nil
 }
 
-func (p *HistoryBuilder) WaitEventTimedOut(d ext.Directive) (ext.HistoryEvent, error) {
-	msg, ok := d.Msg.(*ext.WaitEventTimeout)
+func (p *HistoryBuilder) WaitTimedOut(d ext.Directive) (ext.HistoryEvent, error) {
+	msg, ok := d.Msg.(*ext.WaitTimeout)
 	if !ok {
-		return ext.HistoryEvent{}, fmt.Errorf("cannot publish wait event timed out history event: expected WaitEventTimeout directive but got %T", d.Msg)
+		return ext.HistoryEvent{}, fmt.Errorf("cannot publish wait timed out history event: expected WaitTimeout directive but got %T", d.Msg)
 	}
 
 	return ext.HistoryEvent{
 		WFID:      d.RunInfo.WFID,
 		RunID:     d.RunInfo.ID,
 		Timestamp: time.Now().UTC(),
-		Kind:      ext.HistoryKindWaitEventTimedOut,
-		Msg:       ext.WaitEventTimedOut{TimeoutStepName: msg.TimeoutStepName},
+		Kind:      ext.HistoryKindWaitTimedOut,
+		Msg:       ext.WaitTimedOut{OriginalDirectiveID: msg.OriginalDirectiveID, TimeoutStepName: msg.TimeoutStepName},
 	}, nil
 }
 
-func (p *HistoryBuilder) WaitEventStarted(d ext.Directive) (ext.HistoryEvent, error) {
-	_, ok := d.Msg.(*ext.WaitEvent)
+func (p *HistoryBuilder) WaitStarted(d ext.Directive) (ext.HistoryEvent, error) {
+	msg, ok := d.Msg.(*ext.Wait)
 	if !ok {
-		return ext.HistoryEvent{}, fmt.Errorf("cannot publish wait event started history event: expected WaitEvent directive but got %T", d.Msg)
+		return ext.HistoryEvent{}, fmt.Errorf("cannot publish wait started history event: expected Wait directive but got %T", d.Msg)
 	}
 
-	e := ext.HistoryEvent{
+	return ext.HistoryEvent{
 		WFID:      d.RunInfo.WFID,
 		RunID:     d.RunInfo.ID,
 		Timestamp: time.Now().UTC(),
-		Kind:      ext.HistoryKindWaitEventStarted,
-		Msg:       ext.WaitEventStarted{},
-	}
-
-	return e, nil
+		Kind:      ext.HistoryKindWaitStarted,
+		Msg:       ext.WaitStarted{DirectiveID: d.ID, Timeout: msg.Timeout, TimeoutStepName: msg.TimeoutStepName},
+	}, nil
 }
 
 func (p *HistoryBuilder) EventReceived(d ext.Directive) (ext.HistoryEvent, error) {

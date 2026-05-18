@@ -115,7 +115,7 @@ func (ri RunInfo) StartStep(stepName string, timestamp time.Time) (RunInfo, erro
 	return ri, nil
 }
 
-func (ri RunInfo) WaitEvent(timestamp time.Time) (RunInfo, error) {
+func (ri RunInfo) Wait(timestamp time.Time) (RunInfo, error) {
 	ri.Status = RunStatusRunning
 	return ri, nil
 }

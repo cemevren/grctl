@@ -38,7 +38,7 @@ func (dh *DirectiveHandler) Handle(ctx context.Context, d ext.Directive, numDeli
 	}
 
 	dispatchCurrentEventAfterStore := d.Kind == ext.DirectiveKindEvent &&
-		sn.RunState.Kind == ext.RunStateWaitEvent &&
+		sn.RunState.Kind == ext.RunStateWait &&
 		sn.Event.ID == ""
 
 	updates, err := newUpdateFactory().BuildUpdates(sn, d)
@@ -108,7 +108,7 @@ func (dh *DirectiveHandler) dispatchInboxHead(ctx context.Context, wfID ext.WFID
 		return intr.Retryable(NackDelay)
 	}
 
-	if sn.RunState.Kind != ext.RunStateWaitEvent || sn.Event.ID == "" {
+	if sn.RunState.Kind != ext.RunStateWait || sn.Event.ID == "" {
 		return intr.Processed()
 	}
 

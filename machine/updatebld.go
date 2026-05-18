@@ -31,9 +31,9 @@ func (f *UpdateFactory) BuildUpdates(sn store.StateSnapshot, d ext.Directive) ([
 		updates, err = f.updatesFromStepResult(sn, d)
 	case ext.DirectiveKindEvent:
 		updates, err = f.updatesFromEvent(sn, d)
-	case ext.DirectiveKindWaitEvent:
-		slog.Debug("Starting WaitEvent transition")
-		updates, err = f.updatesFromWaitEvent(sn, d)
+	case ext.DirectiveKindWait:
+		slog.Debug("Starting Wait transition")
+		updates, err = f.updatesFromWait(sn, d)
 	default:
 		updates, err = f.buildTransitionUpdates(d, sn.RunState)
 	}
@@ -49,27 +49,26 @@ func (f *UpdateFactory) BuildUpdates(sn store.StateSnapshot, d ext.Directive) ([
 	return updates, nil
 }
 
-func (f *UpdateFactory) updatesFromWaitEvent(sn store.StateSnapshot, d ext.Directive) ([]store.StateUpdate, error) {
+func (f *UpdateFactory) updatesFromWait(sn store.StateSnapshot, d ext.Directive) ([]store.StateUpdate, error) {
 	updates := make([]store.StateUpdate, 0, 10)
-	_, ok := d.Msg.(*ext.WaitEvent)
+	_, ok := d.Msg.(*ext.Wait)
 	if !ok {
-		return nil, fmt.Errorf("expected WaitEvent message but got %T", d.Msg)
+		return nil, fmt.Errorf("expected Wait message but got %T", d.Msg)
 	}
 
 	if sn.Event.ID != "" {
-		// If we're transitioning into WaitEvent state but there's already an event in the snapshot,
-		// we need to transition into the step for that event
+		// If entering Wait but inbox already has an event, dispatch it immediately
 		stepUpdates, err := f.StartStep(sn.Event, sn.RunState)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build updates for WaitEvent directive while inbox has pending event: %w", err)
+			return nil, fmt.Errorf("failed to build updates for Wait directive while inbox has pending event: %w", err)
 		}
 		updates = append(updates, stepUpdates...)
 	} else {
-		waitEventUpdates, err := f.WaitEvent(d, sn.RunState)
+		waitUpdates, err := f.StartWait(d, sn.RunState)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build updates for WaitEvent directive: %w", err)
+			return nil, fmt.Errorf("failed to build updates for Wait directive: %w", err)
 		}
-		updates = append(updates, waitEventUpdates...)
+		updates = append(updates, waitUpdates...)
 	}
 
 	return updates, nil
@@ -124,11 +123,11 @@ func (f *UpdateFactory) updatesFromEvent(sn store.StateSnapshot, d ext.Directive
 
 	// Always transition the current inbox head while waiting for events.
 	// This preserves inbox order and keeps deleteFromInbox aligned with the processed directive.
-	if sn.RunState.Kind == ext.RunStateWaitEvent && sn.Event.ID != "" {
-		// Cancel the wait event timeout timer if one was set.
+	if sn.RunState.Kind == ext.RunStateWait && sn.Event.ID != "" {
+		// Cancel the wait timeout timer if one was set.
 		if sn.RunState.ActiveDirectiveID != "" {
-			timerID := ext.DeriveTimerID(sn.RunState.ActiveDirectiveID, ext.TimerKindWaitEventTimeout)
-			timerTask, err := ext.NewDeleteTimerTask(d.ID, d.RunInfo.WFID, ext.TimerKindWaitEventTimeout, timerID)
+			timerID := ext.DeriveTimerID(sn.RunState.ActiveDirectiveID, ext.TimerKindWaitTimeout)
+			timerTask, err := ext.NewDeleteTimerTask(d.ID, d.RunInfo.WFID, ext.TimerKindWaitTimeout, timerID)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create delete wait event timeout timer task: %w", err)
 			}
@@ -158,8 +157,8 @@ func (f *UpdateFactory) updatesFromEvent(sn store.StateSnapshot, d ext.Directive
 
 func (f *UpdateFactory) buildNextDirectiveUpdates(sn store.StateSnapshot, d ext.Directive) ([]store.StateUpdate, error) {
 	switch d.Kind {
-	case ext.DirectiveKindWaitEvent:
-		return f.updatesFromWaitEvent(sn, d)
+	case ext.DirectiveKindWait:
+		return f.updatesFromWait(sn, d)
 	default:
 		return f.buildTransitionUpdates(d, sn.RunState)
 	}
@@ -175,8 +174,8 @@ func (f *UpdateFactory) buildTransitionUpdates(d ext.Directive, currentState ext
 		return f.StartStep(d, currentState)
 	case ext.DirectiveKindStepTimeout:
 		return f.BuildStepTimeout(d, currentState)
-	case ext.DirectiveKindWaitEventTimeout:
-		return f.BuildWaitEventTimeout(d, currentState)
+	case ext.DirectiveKindWaitTimeout:
+		return f.BuildWaitTimeout(d, currentState)
 	case ext.DirectiveKindComplete:
 		return f.CompleteRun(d, currentState)
 	case ext.DirectiveKindFail:
@@ -338,35 +337,35 @@ func (f *UpdateFactory) CompleteStep(d ext.Directive, currentState ext.RunState)
 	return updates, nil
 }
 
-func (f *UpdateFactory) WaitEvent(d ext.Directive, currentState ext.RunState) ([]store.StateUpdate, error) {
+func (f *UpdateFactory) StartWait(d ext.Directive, currentState ext.RunState) ([]store.StateUpdate, error) {
 	updates := make([]store.StateUpdate, 0, 4)
-	msg, ok := d.Msg.(*ext.WaitEvent)
+	msg, ok := d.Msg.(*ext.Wait)
 	if !ok || msg == nil {
-		return nil, fmt.Errorf("can not create wait event state update: expected WaitEvent but got %T", d.Msg)
+		return nil, fmt.Errorf("can not create wait state update: expected Wait but got %T", d.Msg)
 	}
 
 	ri := d.RunInfo
-	ri, err := ri.WaitEvent(time.Now().UTC())
+	ri, err := ri.Wait(time.Now().UTC())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create wait event state update: %w", err)
+		return nil, fmt.Errorf("failed to create wait state update: %w", err)
 	}
 	updates = append(updates, store.RunInfoUpdate{Info: ri})
 
-	h, err := NewHistoryBuilder().WaitEventStarted(d)
+	h, err := NewHistoryBuilder().WaitStarted(d)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create wait event history event: %w", err)
+		return nil, fmt.Errorf("failed to create wait started history event: %w", err)
 	}
 	updates = append(updates, store.HistoryUpdate{History: h})
 
 	runState := currentState
-	runState.Kind = ext.RunStateWaitEvent
+	runState.Kind = ext.RunStateWait
 	runState.EnteredAt = time.Now().UTC()
 	runState.ActiveDirectiveID = ""
 
-	if msg.TimeoutStepName != "" {
-		timer, err := createWaitEventTimeoutTimer(d, msg)
+	if msg.Timeout > 0 && msg.TimeoutStepName != "" {
+		timer, err := createWaitTimeoutTimer(d, msg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create wait event timeout timer: %w", err)
+			return nil, fmt.Errorf("failed to create wait timeout timer: %w", err)
 		}
 		updates = append(updates, store.TimerUpdate{Timer: timer})
 		runState.ActiveDirectiveID = d.ID
@@ -645,21 +644,21 @@ func (f *UpdateFactory) StepTimeoutFailure(d ext.Directive, stepName string, cur
 	return f.FailRun(failDirective, currentState)
 }
 
-func (f *UpdateFactory) BuildWaitEventTimeout(d ext.Directive, currentState ext.RunState) ([]store.StateUpdate, error) {
-	msg, ok := d.Msg.(*ext.WaitEventTimeout)
+func (f *UpdateFactory) BuildWaitTimeout(d ext.Directive, currentState ext.RunState) ([]store.StateUpdate, error) {
+	msg, ok := d.Msg.(*ext.WaitTimeout)
 	if !ok {
-		return nil, fmt.Errorf("can not create wait event timeout updates: expected WaitEventTimeout but got %T", d.Msg)
+		return nil, fmt.Errorf("can not create wait timeout updates: expected WaitTimeout but got %T", d.Msg)
 	}
 
-	if currentState.Kind != ext.RunStateWaitEvent || currentState.ActiveDirectiveID != msg.OriginalDirectiveID {
+	if currentState.Kind != ext.RunStateWait || currentState.ActiveDirectiveID != msg.OriginalDirectiveID {
 		return nil, ErrStaleDirective
 	}
 
 	updates := make([]store.StateUpdate, 0, 4)
 
-	he, err := NewHistoryBuilder().WaitEventTimedOut(d)
+	he, err := NewHistoryBuilder().WaitTimedOut(d)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create wait event timed out history event: %w", err)
+		return nil, fmt.Errorf("failed to create wait timed out history event: %w", err)
 	}
 	updates = append(updates, store.HistoryUpdate{History: he})
 
@@ -679,11 +678,11 @@ func (f *UpdateFactory) BuildWaitEventTimeout(d ext.Directive, currentState ext.
 	return updates, nil
 }
 
-func createWaitEventTimeoutTimer(d ext.Directive, msg *ext.WaitEvent) (ext.Timer, error) {
+func createWaitTimeoutTimer(d ext.Directive, msg *ext.Wait) (ext.Timer, error) {
 	now := time.Now().UTC()
 	return ext.Timer{
-		ID:        ext.DeriveTimerID(d.ID, ext.TimerKindWaitEventTimeout),
-		Kind:      ext.TimerKindWaitEventTimeout,
+		ID:        ext.DeriveTimerID(d.ID, ext.TimerKindWaitTimeout),
+		Kind:      ext.TimerKindWaitTimeout,
 		WFID:      d.RunInfo.WFID,
 		CreatedAt: now,
 		ExpiresAt: now.Add(time.Duration(msg.Timeout) * time.Millisecond),

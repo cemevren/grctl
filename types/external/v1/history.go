@@ -24,9 +24,9 @@ const HistoryKindStepFailed HistoryKind = "step.failed"
 const HistoryKindStepStarted HistoryKind = "step.started"
 const HistoryKindStepTimeout HistoryKind = "step.timeout"
 
-const HistoryKindWaitEventStarted  HistoryKind = "wait_event.started"
-const HistoryKindWaitEventTimedOut HistoryKind = "wait_event.timed_out"
-const HistoryKindEventReceived     HistoryKind = "event.received"
+const HistoryKindWaitStarted HistoryKind = "wait.started"
+const HistoryKindWaitTimedOut HistoryKind = "wait.timed_out"
+const HistoryKindEventReceived HistoryKind = "event.received"
 
 const HistoryKindTaskCancelled HistoryKind = "task.cancelled"
 const HistoryKindTaskCompleted HistoryKind = "task.completed"
@@ -120,10 +120,15 @@ type StepTimedout struct {
 	DurationMS int64  `json:"duration_ms" msgpack:"duration_ms"`
 }
 
-type WaitEventStarted struct{}
+type WaitStarted struct {
+	DirectiveID     DirectiveID `json:"directive_id" msgpack:"directive_id"`
+	Timeout         uint32      `json:"timeout_ms" msgpack:"timeout_ms"`
+	TimeoutStepName string      `json:"timeout_step_name" msgpack:"timeout_step_name"`
+}
 
-type WaitEventTimedOut struct {
-	TimeoutStepName string `json:"timeout_step_name" msgpack:"timeout_step_name"`
+type WaitTimedOut struct {
+	OriginalDirectiveID DirectiveID `json:"original_directive_id" msgpack:"original_directive_id"`
+	TimeoutStepName     string      `json:"timeout_step_name" msgpack:"timeout_step_name"`
 }
 
 type EventReceived struct {
@@ -222,9 +227,9 @@ func (StepFailed) isHistoryMessage()    {}
 func (StepCancelled) isHistoryMessage() {}
 func (StepTimedout) isHistoryMessage()  {}
 
-func (WaitEventStarted) isHistoryMessage()  {}
-func (WaitEventTimedOut) isHistoryMessage() {}
-func (EventReceived) isHistoryMessage()    {}
+func (WaitStarted) isHistoryMessage()   {}
+func (WaitTimedOut) isHistoryMessage()  {}
+func (EventReceived) isHistoryMessage() {}
 
 func (TaskStarted) isHistoryMessage()       {}
 func (TaskCompleted) isHistoryMessage()     {}
@@ -255,9 +260,9 @@ var historyMessageFactories = map[HistoryKind]func() HistoryMessage{
 	HistoryKindStepCancelled: func() HistoryMessage { return &StepCancelled{} },
 	HistoryKindStepTimeout:   func() HistoryMessage { return &StepTimedout{} },
 
-	HistoryKindWaitEventStarted:  func() HistoryMessage { return &WaitEventStarted{} },
-	HistoryKindWaitEventTimedOut: func() HistoryMessage { return &WaitEventTimedOut{} },
-	HistoryKindEventReceived:     func() HistoryMessage { return &EventReceived{} },
+	HistoryKindWaitStarted:   func() HistoryMessage { return &WaitStarted{} },
+	HistoryKindWaitTimedOut:  func() HistoryMessage { return &WaitTimedOut{} },
+	HistoryKindEventReceived: func() HistoryMessage { return &EventReceived{} },
 
 	HistoryKindTaskStarted:       func() HistoryMessage { return &TaskStarted{} },
 	HistoryKindTaskCompleted:     func() HistoryMessage { return &TaskCompleted{} },

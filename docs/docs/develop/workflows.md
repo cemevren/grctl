@@ -171,7 +171,7 @@ Every handler returns a directive via `ctx.next` that tells the engine what to d
 | Method | Description |
 |---|---|
 | `ctx.next.step(fn)` | Transition to the given step function |
-| `ctx.next.wait_for_event()` | Pause and wait for external events. See [Events](events.md) for details |
+| `ctx.next.wait()` | Pause and wait for external events. See [Events](events.md) for details |
 | `ctx.next.complete(result)` | Complete the workflow with a result |
 | `ctx.next.fail(error)` | Fail the workflow with an error |
 
@@ -189,7 +189,7 @@ async def cancel(ctx: Context) -> Directive:
 
 !!! warning "Important"
 
-    Events can arrive at any time, including while a step is running. When that happens, the event is saved to an inbox rather than processed immediately. The workflow only handles events when it transitions to `WaitEvent` state. At that point, the server pulls one waiting event from the inbox and dispatches it as a step. Once that step completes, the handler's `ctx.next` determines what happens next; transition to another step, wait for more events, or complete.
+    Events can arrive at any time, including while a step is running. When that happens, the event is saved to an inbox rather than processed immediately. The workflow only handles events when it transitions to `Wait` state. At that point, the server pulls one waiting event from the inbox and dispatches it as a step. Once that step completes, the handler's `ctx.next` determines what happens next; transition to another step, wait for more events, or complete.
 
 Events are covered in depth in [Events](events.md).
 

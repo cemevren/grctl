@@ -125,6 +125,36 @@ This is useful when a different part of your system needs to interact with a wor
 
 See [Workflow ID and Runs](../workflows/#workflow-id-and-runs) for how workflow identity and deduplication work.
 
+## Cancelling a Workflow
+
+Use `handle.cancel()` to stop a running workflow. The workflow is cancelled server-side and the handle's future raises `asyncio.CancelledError`:
+
+```python
+handle = await client.start_workflow(
+    type="ProcessOrder",
+    id="order-abc-123",
+    input={"order_id": "abc-123"},
+    timeout=timedelta(minutes=30),
+)
+
+# Later — cancel the workflow
+await handle.cancel(reason="Customer requested cancellation")
+
+try:
+    result = await asyncio.wait_for(handle.future, timeout=10)
+except asyncio.CancelledError:
+    print("Workflow was cancelled")
+```
+
+You can also cancel a workflow you didn't start by getting a handle first:
+
+```python
+handle = await client.get_handle("order-abc-123")
+await handle.cancel(reason="Payment failed")
+```
+
+Cancellation is a terminal state — the workflow cannot be resumed after it is cancelled. Attempting to cancel an already-completed, failed, or timed-out workflow raises `WorkflowError`.
+
 ## Reference
 
 ### `Client`
@@ -152,6 +182,7 @@ See [Workflow ID and Runs](../workflows/#workflow-id-and-runs) for how workflow 
 | `handle.future` | `asyncio.Future` | Resolves to the workflow result. Raises on failure. |
 | `handle.run_info` | `RunInfo` | Metadata: `run_info.id` (run ID), `run_info.wf_id` (workflow ID), `run_info.wf_type`. |
 | `await handle.send(event_name, payload)` | — | Send an event to the workflow. |
+| `await handle.cancel(reason)` | — | Cancel the workflow. `reason` is optional. Raises `WorkflowError` if already terminal. |
 
 ### `Connection.connect()`
 
